@@ -107,16 +107,62 @@ GET /api/map/complexes?sw_lat=37.0&sw_lng=126.4&ne_lat=37.8&ne_lng=127.5
 { "ok": false, "error": "Failed to fetch complexes", "code": "INTERNAL_ERROR" }
 ```
 
+## 2.3 GET /api/search
+키워드 + 가격 범위 + 지역코드 기준 단지 검색.
+
+### Query Parameters
+1. `q` (string, required, 1~80 chars)
+2. `region` (string, optional): 5자리 지역코드
+3. `min_price` (number, optional)
+4. `max_price` (number, optional)
+5. `page` (number, optional, default=1)
+6. `size` (number, optional, default=20, max=50)
+
+### Example Request
+```http
+GET /api/search?q=래미안&region=11680&min_price=100000&max_price=300000&page=1&size=20
+```
+
+### Success Response (200)
+```json
+{
+  "ok": true,
+  "query": {
+    "q": "래미안",
+    "region": "11680",
+    "min_price": 100000,
+    "max_price": 300000,
+    "page": 1,
+    "size": 20
+  },
+  "count": 2,
+  "items": [
+    {
+      "id": 10,
+      "apt_name": "래미안",
+      "legal_dong": "역삼동",
+      "region_code": "11680",
+      "region_name": "강남구",
+      "lat": 37.5,
+      "lng": 127.0,
+      "deal_amount_manwon": 250000,
+      "deal_date": "2026-02-01"
+    }
+  ]
+}
+```
+
+### Failure Response (503)
+```json
+{ "ok": false, "error": "DATABASE_URL is not configured", "code": "DB_NOT_CONFIGURED" }
+```
+
 ## 3. Planned Endpoints (Next)
 
-## 3.1 GET /api/search
-- 목적: 키워드 + 범위 + 가격 기반 검색
-- Query: `q`, `region`, `min_price`, `max_price`, `page`, `size`
-
-## 3.2 GET /api/complexes/:id
+## 3.1 GET /api/complexes/:id
 - 목적: 단지 기본 정보 조회
 
-## 3.3 GET /api/complexes/:id/deals
+## 3.2 GET /api/complexes/:id/deals
 - 목적: 단지 거래 히스토리 조회
 
 ## 4. Data Contract (TypeScript)
@@ -161,5 +207,6 @@ interface MapComplex {
 1. `npm run dev`
 2. `curl "http://localhost:3000/api/deals?region=11680&sort=top"`
 3. `curl "http://localhost:3000/api/map/complexes?sw_lat=37.0&sw_lng=126.4&ne_lat=37.8&ne_lng=127.5"`
+4. `curl "http://localhost:3000/api/search?q=래미안&page=1&size=20"`
 4. `npm run lint`
 5. `npm run build`
