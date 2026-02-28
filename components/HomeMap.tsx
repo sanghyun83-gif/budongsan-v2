@@ -6,10 +6,23 @@ import type { MapComplex } from "@/lib/types";
 
 const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_JS_KEY ?? "";
 
-export default function HomeMap() {
+type Bounds = {
+  swLat: number;
+  swLng: number;
+  neLat: number;
+  neLng: number;
+};
+
+interface HomeMapProps {
+  complexes: MapComplex[];
+  onBoundsChanged?: (bounds: Bounds) => void;
+}
+
+export default function HomeMap({ complexes, onBoundsChanged }: HomeMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [error, setError] = useState<string>("");
-  const [loaded, setLoaded] = useState(false);
+  const mapRef = useRef<InstanceType<typeof window.kakao.maps.Map> | null>(null);
+  const markersRef = useRef<Array<{ setMap: (map: unknown | null) => void }>>([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -19,22 +32,25 @@ export default function HomeMap() {
         await loadKakaoMapsSdk(KAKAO_KEY);
         if (cancelled || !containerRef.current) return;
 
-        const center = new window.kakao.maps.LatLng(37.5665, 126.9780);
+        const center = new window.kakao.maps.LatLng(37.5665, 126.978);
         const map = new window.kakao.maps.Map(containerRef.current, { center, level: 7 });
+        mapRef.current = map;
 
-        const res = await fetch("/api/map/complexes?sw_lat=37.0&sw_lng=126.4&ne_lat=37.8&ne_lng=127.5", { cache: "no-store" });
-        const json = (await res.json()) as { ok: boolean; complexes?: MapComplex[]; error?: string };
+        const emitBounds = () => {
+          if (!onBoundsChanged) return;
+          const b = map.getBounds();
+          const sw = b.getSouthWest();
+          const ne = b.getNorthEast();
+          onBoundsChanged({
+            swLat: sw.getLat(),
+            swLng: sw.getLng(),
+            neLat: ne.getLat(),
+            neLng: ne.getLng()
+          });
+        };
 
-        if (!json.ok || !json.complexes) {
-          throw new Error(json.error ?? "Failed to fetch complexes");
-        }
-
-        for (const c of json.complexes.slice(0, 120)) {
-          const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
-          new window.kakao.maps.Marker({ map, position: pos, title: `${c.aptName} ${c.dealAmount}` });
-        }
-
-        setLoaded(true);
+        emitBounds();
+        window.kakao.maps.event.addListener(map, "idle", emitBounds);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown map error");
       }
@@ -44,18 +60,29 @@ export default function HomeMap() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onBoundsChanged]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    for (const marker of markersRef.current) {
+      marker.setMap(null);
+    }
+    markersRef.current = [];
+
+    for (const c of complexes.slice(0, 300)) {
+      const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
+      const marker = new window.kakao.maps.Marker({ map, position: pos, title: `${c.aptName} ${c.dealAmount}` });
+      markersRef.current.push(marker);
+    }
+  }, [complexes]);
 
   return (
     <section style={{ display: "grid", gap: 12 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700 }}>Map Preview (Kakao + MOLIT)</h2>
-      <div
-        ref={containerRef}
-        style={{ width: "100%", height: 520, borderRadius: 16, border: "1px solid #e5e7eb", background: "#f8fafc" }}
-      />
-      {loaded && <p style={{ color: "#065f46" }}>Map loaded and markers rendered.</p>}
+      <h2 style={{ fontSize: 18, fontWeight: 700 }}>지도 탐색</h2>
+      <div ref={containerRef} className="map-canvas" />
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
     </section>
   );
 }
-

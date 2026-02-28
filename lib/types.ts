@@ -20,6 +20,7 @@ export interface Sigungu {
 }
 
 export interface MapComplex {
+  id: number;
   aptId: string;
   aptName: string;
   legalDong: string;
