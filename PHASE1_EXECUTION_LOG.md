@@ -73,3 +73,22 @@ API checks:
 4. Immediate unblock
 - Add `DATABASE_URL` to `.env.local` and Vercel env
 - Apply `sql/001_init.sql` to PostgreSQL/PostGIS
+
+## Seed execution result (2026-02-28)
+
+1. Added files
+- `sql/002_seed.sql` (minimal seed for search/map verification)
+- `scripts/run-sql.mjs` (apply SQL to `DATABASE_URL`)
+
+2. Execution
+- Command: `node scripts/run-sql.mjs sql/002_seed.sql`
+- Result: applied successfully
+
+3. Verification (local)
+- `GET /api/search?q=래미안&page=1&size=5`
+  - Status: `200`
+  - Count: `2`
+- `GET /api/map/complexes?sw_lat=37.0&sw_lng=126.4&ne_lat=37.8&ne_lng=127.5&limit=5`
+  - Status: `200`
+  - Source: `database`
+  - Count: `3`
