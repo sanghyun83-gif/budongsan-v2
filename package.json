@@ -1,34 +1,38 @@
 {
-    "name":  "budongsan-v2",
-    "version":  "0.1.0",
-    "private":  true,
-    "scripts":  {
-                    "dev":  "next dev",
-                    "build":  "next build",
-                    "start":  "next start",
-                    "lint":  "eslint",
-                    "db:normalize":  "node scripts/run-sql.mjs sql/003_normalize_from_raw.sql",
-                    "qa:smoke":  "node scripts/smoke-launch-gate.mjs",
-                    "qa:lighthouse:mobile":  "lighthouse http://localhost:3000 --output html --output-path ./docs/lighthouse-mobile.html --chrome-flags=\"--headless\""
-                },
-    "dependencies":  {
-                         "@types/pg":  "^8.16.0",
-                         "@upstash/redis":  "^1.36.3",
-                         "next":  "16.1.6",
-                         "pg":  "^8.19.0",
-                         "react":  "19.2.3",
-                         "react-dom":  "19.2.3",
-                         "zod":  "^4.3.6"
-                     },
-    "devDependencies":  {
-                            "@tailwindcss/postcss":  "^4",
-                            "@types/node":  "^20",
-                            "@types/react":  "^19",
-                            "@types/react-dom":  "^19",
-                            "eslint":  "^9",
-                            "eslint-config-next":  "16.1.6",
-                            "lighthouse":  "^13.0.3",
-                            "tailwindcss":  "^4",
-                            "typescript":  "^5"
-                        }
+  "name": "budongsan-v2",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:normalize": "node scripts/run-sql.mjs sql/003_normalize_from_raw.sql",
+    "qa:smoke": "node scripts/smoke-launch-gate.mjs",
+    "qa:lighthouse:mobile": "lighthouse http://localhost:3000 --output html --output-path ./docs/lighthouse-mobile.html --chrome-flags=\"--headless\"",
+    "ingest:molit": "node scripts/ingest-molit.mjs",
+    "ingest:molit:seoul3m": "node scripts/ingest-molit.mjs --months=3",
+    "ingest:molit:dry": "node scripts/ingest-molit.mjs --months=3 --dryRun=true",
+    "db:indexes:mvp3": "node scripts/run-sql.mjs sql/004_mvp3_indexes.sql"
+  },
+  "dependencies": {
+    "@types/pg": "^8.16.0",
+    "@upstash/redis": "^1.36.3",
+    "next": "16.1.6",
+    "pg": "^8.19.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "lighthouse": "^13.0.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
 }

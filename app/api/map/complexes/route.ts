@@ -6,6 +6,8 @@ import { getTopDeals } from "@/lib/api/molit";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
 
+const sortSchema = z.enum(["latest", "price_desc", "price_asc", "deal_count"]);
+
 const bboxSchema = z
   .object({
     sw_lat: z.coerce.number().min(-90).max(90),
@@ -16,6 +18,7 @@ const bboxSchema = z
     region: z.string().regex(/^\d{5}$/).optional(),
     min_price: z.coerce.number().int().min(0).optional(),
     max_price: z.coerce.number().int().min(0).optional(),
+    sort: sortSchema.default("latest"),
     limit: z.coerce.number().int().min(1).max(500).default(300)
   })
   .refine((v) => v.sw_lat < v.ne_lat && v.sw_lng < v.ne_lng, {
@@ -48,9 +51,20 @@ async function fetchFromDatabase(
   region: string | undefined,
   minPrice: number | undefined,
   maxPrice: number | undefined,
+  sort: z.infer<typeof sortSchema>,
   limit: number
 ) {
   const pool = getDbPool();
+
+  const orderBy =
+    sort === "price_asc"
+      ? "latest.deal_amount_manwon ASC NULLS LAST, c.id DESC"
+      : sort === "price_desc"
+        ? "latest.deal_amount_manwon DESC NULLS LAST, c.id DESC"
+        : sort === "deal_count"
+          ? "stats.deal_count_3m DESC, latest.deal_date DESC NULLS LAST, c.id DESC"
+          : "latest.deal_date DESC NULLS LAST, c.id DESC";
+
   const result = await pool.query(
     `
     SELECT
@@ -60,16 +74,24 @@ async function fetchFromDatabase(
       r.code AS region_code,
       ST_Y(c.location::geometry) AS lat,
       ST_X(c.location::geometry) AS lng,
-      latest.deal_amount_manwon
+      latest.deal_amount_manwon,
+      latest.deal_date,
+      stats.deal_count_3m
     FROM complex c
     JOIN region r ON r.id = c.region_id
     LEFT JOIN LATERAL (
-      SELECT d.deal_amount_manwon
+      SELECT d.deal_amount_manwon, d.deal_date
       FROM deal_trade_normalized d
       WHERE d.complex_id = c.id
       ORDER BY d.deal_date DESC
       LIMIT 1
     ) latest ON true
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::INT AS deal_count_3m
+      FROM deal_trade_normalized d
+      WHERE d.complex_id = c.id
+        AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
+    ) stats ON true
     WHERE c.location IS NOT NULL
       AND ($6::TEXT IS NULL OR c.apt_name ILIKE $6 OR c.legal_dong ILIKE $6)
       AND ($7::VARCHAR IS NULL OR r.code = $7)
@@ -79,7 +101,7 @@ async function fetchFromDatabase(
         c.location,
         ST_MakeEnvelope($1, $2, $3, $4, 4326)
       )
-    ORDER BY latest.deal_amount_manwon DESC NULLS LAST, c.id DESC
+    ORDER BY ${orderBy}
     LIMIT $5
     `,
     [swLng, swLat, neLng, neLat, limit, q ? `%${q}%` : null, region ?? null, minPrice ?? null, maxPrice ?? null]
@@ -144,6 +166,7 @@ export async function GET(req: NextRequest) {
       region: params.get("region") ?? undefined,
       min_price: params.get("min_price") ?? undefined,
       max_price: params.get("max_price") ?? undefined,
+      sort: params.get("sort") ?? "latest",
       limit: params.get("limit") ?? 300
     });
 
@@ -157,11 +180,13 @@ export async function GET(req: NextRequest) {
         parsed.region,
         parsed.min_price,
         parsed.max_price,
+        parsed.sort,
         parsed.limit
       );
       return NextResponse.json({
         ok: true,
         source: "database",
+        appliedSort: parsed.sort,
         count: complexes.length,
         complexes,
         updatedAt: new Date().toISOString()
@@ -173,6 +198,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       source: "fallback",
       warning: "DATABASE_URL is not configured. Returning fallback map data.",
+      appliedSort: parsed.sort,
       count: fallback.length,
       complexes: fallback,
       updatedAt: new Date().toISOString()
@@ -186,4 +212,3 @@ export async function GET(req: NextRequest) {
     recordApiMetric("GET /api/map/complexes", performance.now() - started, status);
   }
 }
-

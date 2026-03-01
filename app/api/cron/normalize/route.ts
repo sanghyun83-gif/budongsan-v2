@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
 
@@ -10,6 +10,21 @@ function isAuthorized(req: NextRequest, cronSecret: string) {
   if (authHeader && authHeader === `Bearer ${cronSecret}`) return true;
 
   return false;
+}
+
+async function writeCronAudit(status: "success" | "error", detail: Record<string, unknown>) {
+  if (!hasDatabaseUrl()) return;
+  const pool = getDbPool();
+
+  await pool.query(
+    `
+    INSERT INTO audit_log (
+      actor_type, actor_id, target_type, target_id, event_name, after_json, created_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
+    `,
+    ["system", null, "pipeline", null, `cron_normalize_${status}`, JSON.stringify(detail)]
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -80,13 +95,23 @@ export async function GET(req: NextRequest) {
 
     const result = await pool.query<{ inserted_count: number }>(sql);
     const insertedCount = result.rows[0]?.inserted_count ?? 0;
+    const ranAt = new Date().toISOString();
+
+    await writeCronAudit("success", { insertedCount, ranAt });
 
     console.info(`[cron-normalize] inserted_count=${insertedCount}`);
-    return NextResponse.json({ ok: true, insertedCount, ranAt: new Date().toISOString() });
+    return NextResponse.json({ ok: true, insertedCount, ranAt });
   } catch (error) {
     logApiError("GET /api/cron/normalize", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     status = 500;
+
+    try {
+      await writeCronAudit("error", { message, ranAt: new Date().toISOString() });
+    } catch {
+      // ignore audit write failure
+    }
+
     return NextResponse.json({ ok: false, code: "INTERNAL_ERROR", error: message }, { status });
   } finally {
     recordApiMetric("GET /api/cron/normalize", performance.now() - started, status);
