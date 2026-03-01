@@ -68,3 +68,61 @@
 - UI 명세: `docs/UI_MVP2_SPEC.md`
 - 컴포넌트: `docs/COMPONENT_SYSTEM.md`
 - 실행 로그: `docs/PHASE2_EXECUTION_LOG.md`
+
+## 프로덕션 점검 명령 (Vercel)
+
+기준 URL:
+- `https://budongsan-v2.vercel.app`
+
+### 1) Cron normalize 200 확인
+
+PowerShell:
+```powershell
+$BASE_URL = "https://budongsan-v2.vercel.app"
+$CRON_SECRET = "<YOUR_CRON_SECRET>"
+
+Invoke-RestMethod `
+  -Method GET `
+  -Uri "$BASE_URL/api/cron/normalize" `
+  -Headers @{ "x-cron-secret" = $CRON_SECRET }
+```
+
+정상 기준:
+- HTTP 200
+- `ok: true`
+- `insertedCount` 필드 존재
+
+### 2) 데이터 최신성 확인
+
+PowerShell:
+```powershell
+$BASE_URL = "https://budongsan-v2.vercel.app"
+
+Invoke-RestMethod `
+  -Method GET `
+  -Uri "$BASE_URL/api/ops/data-freshness" | ConvertTo-Json -Depth 6
+```
+
+정상 기준:
+- `ok: true`
+- `raw.lastIngestedAt` 존재
+- `normalized.lastDealDate` 존재
+- `recentCronRuns`에 `cron_normalize_success` 포함(최근 실행 시)
+
+### 3) 핵심 API 회귀 테스트
+
+PowerShell:
+```powershell
+$BASE_URL = "https://budongsan-v2.vercel.app"
+
+Invoke-RestMethod "$BASE_URL/api/search?q=래미안&page=1&size=5&sort=latest" | ConvertTo-Json -Depth 4
+Invoke-RestMethod "$BASE_URL/api/map/complexes?sw_lat=37.0&sw_lng=126.4&ne_lat=37.8&ne_lng=127.5&limit=5&q=래미안&sort=deal_count" | ConvertTo-Json -Depth 4
+Invoke-RestMethod "$BASE_URL/api/complexes/1" | ConvertTo-Json -Depth 4
+Invoke-RestMethod "$BASE_URL/api/complexes/1/deals?page=1&size=20" | ConvertTo-Json -Depth 4
+```
+
+### 4) UI 회귀 체크 (수동)
+
+- 데스크탑: `/` → 검색(`래미안`) → 리스트 클릭 → `/complexes/:id` 이동
+- 모바일(Device Mode): 같은 플로우 1회 반복
+- 확인 포인트: 지도/리스트 동기화, CTA 버튼 클릭 가능, 레이아웃 깨짐 없음
