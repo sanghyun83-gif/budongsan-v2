@@ -26,6 +26,11 @@ const ORDER_BY: Record<z.infer<typeof sortSchema>, string> = {
   deal_count: "stats.deal_count_3m DESC, latest.deal_date DESC NULLS LAST, c.id DESC"
 };
 
+function parseExactOnly(params: URLSearchParams): boolean {
+  const raw = params.get("exact_only");
+  return raw === "true" || raw === "1";
+}
+
 export async function GET(req: NextRequest) {
   const started = performance.now();
   let status = 200;
@@ -33,17 +38,12 @@ export async function GET(req: NextRequest) {
   try {
     if (!hasDatabaseUrl()) {
       status = 503;
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "DB_NOT_CONFIGURED",
-          error: "DATABASE_URL is not configured"
-        },
-        { status }
-      );
+      return NextResponse.json({ ok: false, code: "DB_NOT_CONFIGURED", error: "DATABASE_URL is not configured" }, { status });
     }
 
     const params = req.nextUrl.searchParams;
+    const exactOnly = parseExactOnly(params);
+
     const input = querySchema.parse({
       q: params.get("q"),
       region: params.get("region") ?? undefined,
@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         c.id,
         c.apt_name,
         c.legal_dong,
+        c.location_source,
         r.code AS region_code,
         r.name_ko AS region_name,
         ST_Y(c.location::geometry) AS lat,
@@ -93,8 +94,8 @@ export async function GET(req: NextRequest) {
       CROSS JOIN LATERAL (
         SELECT
           CASE
-            WHEN c.apt_name ILIKE $11 THEN 300
-            WHEN c.legal_dong ILIKE $11 THEN 250
+            WHEN c.apt_name ILIKE $12 THEN 300
+            WHEN c.legal_dong ILIKE $12 THEN 250
             WHEN c.apt_name ILIKE $1 THEN 180
             WHEN c.legal_dong ILIKE $1 THEN 140
             ELSE 0
@@ -110,6 +111,7 @@ export async function GET(req: NextRequest) {
         AND ($2::VARCHAR IS NULL OR r.code = $2)
         AND ($3::INT IS NULL OR latest.deal_amount_manwon >= $3)
         AND ($4::INT IS NULL OR latest.deal_amount_manwon <= $4)
+        AND ($11::BOOLEAN = false OR c.location_source = 'exact')
         AND (
           $7::DOUBLE PRECISION IS NULL
           OR $8::DOUBLE PRECISION IS NULL
@@ -117,10 +119,7 @@ export async function GET(req: NextRequest) {
           OR $10::DOUBLE PRECISION IS NULL
           OR (
             c.location IS NOT NULL
-            AND ST_Intersects(
-              c.location,
-              ST_MakeEnvelope($8, $7, $10, $9, 4326)
-            )
+            AND ST_Intersects(c.location, ST_MakeEnvelope($8, $7, $10, $9, 4326))
           )
         )
       ORDER BY ${orderBy}
@@ -128,7 +127,7 @@ export async function GET(req: NextRequest) {
     `;
 
     const like = `%${input.q}%`;
-    const exact = input.q;
+    const exactKeyword = input.q;
 
     const result = await pool.query(sql, [
       like,
@@ -141,14 +140,15 @@ export async function GET(req: NextRequest) {
       input.sw_lng ?? null,
       input.ne_lat ?? null,
       input.ne_lng ?? null,
-      exact
+      exactOnly,
+      exactKeyword
     ]);
 
     const totalCount = result.rows.length > 0 ? Number(result.rows[0].total_count ?? 0) : 0;
 
     return NextResponse.json({
       ok: true,
-      query: input,
+      query: { ...input, exact_only: exactOnly },
       appliedSort: input.sort,
       count: result.rows.length,
       totalCount,

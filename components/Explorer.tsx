@@ -90,6 +90,7 @@ export default function Explorer() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState<SortValue>("latest");
+  const [exactOnly, setExactOnly] = useState(false);
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
   const [searchItems, setSearchItems] = useState<SearchItem[]>([]);
   const [mapItems, setMapItems] = useState<MapComplex[]>([]);
@@ -111,6 +112,9 @@ export default function Explorer() {
       setSort(candidateSort as SortValue);
     }
 
+    const exactOnlyParam = sp.get("exact_only");
+    setExactOnly(exactOnlyParam === "true");
+
     const swLat = Number(sp.get("sw_lat"));
     const swLng = Number(sp.get("sw_lng"));
     const neLat = Number(sp.get("ne_lat"));
@@ -130,9 +134,10 @@ export default function Explorer() {
       minPrice: minPrice.trim(),
       maxPrice: maxPrice.trim(),
       sort,
+      exactOnly,
       bounds
     }),
-    [q, region, minPrice, maxPrice, sort, bounds]
+    [q, region, minPrice, maxPrice, sort, exactOnly, bounds]
   );
 
   const syncUrl = useCallback(() => {
@@ -142,6 +147,7 @@ export default function Explorer() {
     if (queryState.minPrice) sp.set("min_price", queryState.minPrice);
     if (queryState.maxPrice) sp.set("max_price", queryState.maxPrice);
     sp.set("sort", queryState.sort);
+    if (queryState.exactOnly) sp.set("exact_only", "true");
     sp.set("sw_lat", String(queryState.bounds.swLat));
     sp.set("sw_lng", String(queryState.bounds.swLng));
     sp.set("ne_lat", String(queryState.bounds.neLat));
@@ -167,6 +173,7 @@ export default function Explorer() {
       common.set("page", "1");
       common.set("size", "20");
       common.set("sort", queryState.sort);
+      common.set("exact_only", String(queryState.exactOnly));
       common.set("sw_lat", String(queryState.bounds.swLat));
       common.set("sw_lng", String(queryState.bounds.swLng));
       common.set("ne_lat", String(queryState.bounds.neLat));
@@ -186,12 +193,8 @@ export default function Explorer() {
       const searchJson = await searchRes.json();
       const mapJson = await mapRes.json();
 
-      if (!searchRes.ok || !searchJson.ok) {
-        throw new Error(searchJson.error ?? "Search API failed");
-      }
-      if (!mapRes.ok || !mapJson.ok) {
-        throw new Error(mapJson.error ?? "Map API failed");
-      }
+      if (!searchRes.ok || !searchJson.ok) throw new Error(searchJson.error ?? "Search API failed");
+      if (!mapRes.ok || !mapJson.ok) throw new Error(mapJson.error ?? "Map API failed");
 
       setSearchItems(searchJson.items ?? []);
       setMapItems(mapJson.complexes ?? []);
@@ -239,6 +242,7 @@ export default function Explorer() {
     setMinPrice("");
     setMaxPrice("");
     setSort("latest");
+    setExactOnly(false);
     setSearchItems([]);
     setMapItems([]);
     setUpdatedAt(null);
@@ -269,6 +273,11 @@ export default function Explorer() {
         </button>
       </form>
 
+      <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontSize: 14 }}>
+        <input type="checkbox" checked={exactOnly} onChange={(e) => setExactOnly(e.target.checked)} />
+        정확 좌표만 보기 (exact)
+      </label>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#475569", fontSize: 14 }}>
         <span>출처: 국토교통부 실거래가 공개데이터</span>
         <span>최종 업데이트: {formatKstDateTime(updatedAt)}</span>
@@ -284,27 +293,12 @@ export default function Explorer() {
         <aside style={{ display: "grid", gap: 8, alignContent: "start" }}>
           <h2 style={{ fontSize: 18, fontWeight: 700 }}>검색 결과</h2>
           {!loading && !error && searchItems.length === 0 && (
-            <div
-              style={{
-                color: "#64748b",
-                border: "1px dashed #cbd5e1",
-                borderRadius: 10,
-                padding: 12,
-                display: "grid",
-                gap: 10
-              }}
-            >
+            <div style={{ color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: 10, padding: 12, display: "grid", gap: 10 }}>
               <span>조건에 맞는 단지가 없습니다.</span>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" className="ui-button" onClick={() => quickRegion("11680")}>
-                  강남구 빠른 적용
-                </button>
-                <button type="button" className="ui-button" onClick={() => quickRegion("11710")}>
-                  송파구 빠른 적용
-                </button>
-                <button type="button" className="ui-button" onClick={resetFilters}>
-                  조건 초기화
-                </button>
+                <button type="button" className="ui-button" onClick={() => quickRegion("11680")}>강남구 빠른 적용</button>
+                <button type="button" className="ui-button" onClick={() => quickRegion("11710")}>송파구 빠른 적용</button>
+                <button type="button" className="ui-button" onClick={resetFilters}>조건 초기화</button>
               </div>
             </div>
           )}
@@ -312,9 +306,7 @@ export default function Explorer() {
             <Link key={item.id} href={`/complexes/${item.id}`} className="ui-card-link">
               <div>
                 <p style={{ fontWeight: 700 }}>{item.apt_name}</p>
-                <p style={{ color: "#64748b", fontSize: 14 }}>
-                  {item.region_name} {item.legal_dong}
-                </p>
+                <p style={{ color: "#64748b", fontSize: 14 }}>{item.region_name} {item.legal_dong}</p>
               </div>
               <div style={{ textAlign: "right" }}>
                 <p style={{ fontWeight: 700 }}>{formatManwon(item.deal_amount_manwon)}</p>

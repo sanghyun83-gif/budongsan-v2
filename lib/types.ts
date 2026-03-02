@@ -1,4 +1,4 @@
-﻿export interface ApartmentDeal {
+export interface ApartmentDeal {
   aptId: string;
   regionCode: string;
   aptName: string;
@@ -19,6 +19,8 @@ export interface Sigungu {
   nameKo: string;
 }
 
+export type LocationSource = "exact" | "approx";
+
 export interface MapComplex {
   id: number;
   aptId: string;
@@ -27,5 +29,5 @@ export interface MapComplex {
   dealAmount: number;
   lat: number;
   lng: number;
+  locationSource: LocationSource;
 }
-

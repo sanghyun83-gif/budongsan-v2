@@ -29,7 +29,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
   return (
     <main style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 16 }}>
       <Link href="/" style={{ color: "#0f766e", textDecoration: "underline", width: "fit-content" }}>
-        ← 홈으로
+        홈으로
       </Link>
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
@@ -84,7 +84,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
                 <div>
                   <p style={{ fontWeight: 600 }}>{new Date(d.dealDate).toLocaleDateString("ko-KR")}</p>
                   <p style={{ color: "#64748b" }}>
-                    {d.areaM2}㎡ · {d.floor ?? "-"}층
+                    {d.areaM2}m² · {d.floor ?? "-"}층
                   </p>
                 </div>
                 <p style={{ fontWeight: 700 }}>{formatManwon(d.dealAmountManwon)}</p>
@@ -98,4 +98,3 @@ export default async function ComplexDetailPage({ params }: PageProps) {
     </main>
   );
 }
-

@@ -25,6 +25,11 @@ const bboxSchema = z
     message: "Invalid bbox range"
   });
 
+function parseExactOnly(params: URLSearchParams): boolean {
+  const raw = params.get("exact_only");
+  return raw === "true" || raw === "1";
+}
+
 function hashToOffset(input: string): number {
   let h = 0;
   for (let i = 0; i < input.length; i += 1) {
@@ -51,6 +56,7 @@ async function fetchFromDatabase(
   region: string | undefined,
   minPrice: number | undefined,
   maxPrice: number | undefined,
+  exactOnly: boolean,
   sort: z.infer<typeof sortSchema>,
   limit: number
 ) {
@@ -71,6 +77,7 @@ async function fetchFromDatabase(
       c.id,
       c.apt_name,
       c.legal_dong,
+      c.location_source,
       r.code AS region_code,
       ST_Y(c.location::geometry) AS lat,
       ST_X(c.location::geometry) AS lng,
@@ -97,14 +104,12 @@ async function fetchFromDatabase(
       AND ($7::VARCHAR IS NULL OR r.code = $7)
       AND ($8::INT IS NULL OR latest.deal_amount_manwon >= $8)
       AND ($9::INT IS NULL OR latest.deal_amount_manwon <= $9)
-      AND ST_Intersects(
-        c.location,
-        ST_MakeEnvelope($1, $2, $3, $4, 4326)
-      )
+      AND ($10::BOOLEAN = false OR c.location_source = 'exact')
+      AND ST_Intersects(c.location, ST_MakeEnvelope($1, $2, $3, $4, 4326))
     ORDER BY ${orderBy}
     LIMIT $5
     `,
-    [swLng, swLat, neLng, neLat, limit, q ? `%${q}%` : null, region ?? null, minPrice ?? null, maxPrice ?? null]
+    [swLng, swLat, neLng, neLat, limit, q ? `%${q}%` : null, region ?? null, minPrice ?? null, maxPrice ?? null, exactOnly]
   );
 
   return result.rows.map((r) => ({
@@ -114,7 +119,8 @@ async function fetchFromDatabase(
     legalDong: r.legal_dong ?? "",
     dealAmount: Number(r.deal_amount_manwon ?? 0),
     lat: Number(r.lat),
-    lng: Number(r.lng)
+    lng: Number(r.lng),
+    locationSource: r.location_source === "exact" ? "exact" : "approx"
   })) as MapComplex[];
 }
 
@@ -133,7 +139,8 @@ async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng:
           legalDong: d.legalDong,
           dealAmount: d.dealAmount,
           lat,
-          lng
+          lng,
+          locationSource: "approx"
         };
         return out;
       });
@@ -157,6 +164,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const params = req.nextUrl.searchParams;
+    const exactOnly = parseExactOnly(params);
+
     const parsed = bboxSchema.parse({
       sw_lat: params.get("sw_lat") ?? -90,
       sw_lng: params.get("sw_lng") ?? -180,
@@ -180,6 +189,7 @@ export async function GET(req: NextRequest) {
         parsed.region,
         parsed.min_price,
         parsed.max_price,
+        exactOnly,
         parsed.sort,
         parsed.limit
       );
@@ -187,6 +197,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         source: "database",
         appliedSort: parsed.sort,
+        exactOnly,
         count: complexes.length,
         complexes,
         updatedAt: new Date().toISOString()
@@ -199,6 +210,7 @@ export async function GET(req: NextRequest) {
       source: "fallback",
       warning: "DATABASE_URL is not configured. Returning fallback map data.",
       appliedSort: parsed.sort,
+      exactOnly,
       count: fallback.length,
       complexes: fallback,
       updatedAt: new Date().toISOString()

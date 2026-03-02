@@ -68,3 +68,16 @@
 ## 참고
 - 로컬에서 `cron/normalize`를 200으로 테스트하려면 `.env.local`에 `CRON_SECRET` 추가 후 dev 서버 재시작 필요
 - Vercel은 `CRON_SECRET` 설정 + Redeploy 후 동일 엔드포인트로 200 검증 가능
+## 2026-03-01 (Location Accuracy P0)
+- `sql/005_location_source.sql` 추가 및 적용 (`complex.location_source`: exact/approx)
+- `package.json` 스크립트 추가: `db:location-source`
+- API 반영:
+  - `/api/search` 응답에 `location_source` 포함
+  - `/api/map/complexes` 응답에 `locationSource` 포함
+  - `/api/complexes/:id` 응답(요약)에 `locationSource` 포함
+- UI 반영:
+  - 홈 리스트 카드에 `근사 위치` 배지 노출
+  - 단지 상세에 `근사 위치` 배지 + 신뢰성 안내 문구 노출
+- 검증:
+  - `npm run lint` 통과
+  - `npm run build` 통과
