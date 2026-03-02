@@ -4,12 +4,13 @@ import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
 
 const sortSchema = z.enum(["latest", "price_desc", "price_asc", "deal_count"]);
+const MAX_DB_INT = 2_147_483_647;
 
 const querySchema = z.object({
   q: z.string().trim().min(1).max(80),
   region: z.string().regex(/^\d{5}$/).optional(),
-  min_price: z.coerce.number().int().min(0).optional(),
-  max_price: z.coerce.number().int().min(0).optional(),
+  min_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
+  max_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
   sw_lat: z.coerce.number().min(-90).max(90).optional(),
   sw_lng: z.coerce.number().min(-180).max(180).optional(),
   ne_lat: z.coerce.number().min(-90).max(90).optional(),

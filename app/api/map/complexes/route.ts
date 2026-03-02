@@ -7,6 +7,7 @@ import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
 
 const sortSchema = z.enum(["latest", "price_desc", "price_asc", "deal_count"]);
+const MAX_DB_INT = 2_147_483_647;
 
 const bboxSchema = z
   .object({
@@ -16,8 +17,8 @@ const bboxSchema = z
     ne_lng: z.coerce.number().min(-180).max(180),
     q: z.string().trim().max(80).optional(),
     region: z.string().regex(/^\d{5}$/).optional(),
-    min_price: z.coerce.number().int().min(0).optional(),
-    max_price: z.coerce.number().int().min(0).optional(),
+    min_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
+    max_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
     sort: sortSchema.default("latest"),
     limit: z.coerce.number().int().min(1).max(500).default(300)
   })

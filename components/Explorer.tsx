@@ -41,6 +41,8 @@ const DEFAULT_BOUNDS: Bounds = {
   neLng: 127.5
 };
 
+const MAX_DB_INT = 2_147_483_647;
+
 const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   year: "numeric",
@@ -58,6 +60,14 @@ const KST_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   month: "2-digit",
   day: "2-digit"
 });
+
+function sanitizePriceInput(raw: string): string {
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed)) return "";
+  return String(Math.min(MAX_DB_INT, Math.max(0, Math.trunc(parsed))));
+}
 
 function formatManwon(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
@@ -144,8 +154,12 @@ export default function Explorer() {
     const sp = new URLSearchParams();
     if (queryState.q) sp.set("q", queryState.q);
     if (queryState.region) sp.set("region", queryState.region);
-    if (queryState.minPrice) sp.set("min_price", queryState.minPrice);
-    if (queryState.maxPrice) sp.set("max_price", queryState.maxPrice);
+
+    const normalizedMinPrice = sanitizePriceInput(queryState.minPrice);
+    const normalizedMaxPrice = sanitizePriceInput(queryState.maxPrice);
+    if (normalizedMinPrice) sp.set("min_price", normalizedMinPrice);
+    if (normalizedMaxPrice) sp.set("max_price", normalizedMaxPrice);
+
     sp.set("sort", queryState.sort);
     if (queryState.exactOnly) sp.set("exact_only", "true");
     sp.set("sw_lat", String(queryState.bounds.swLat));
@@ -179,8 +193,11 @@ export default function Explorer() {
       common.set("ne_lat", String(queryState.bounds.neLat));
       common.set("ne_lng", String(queryState.bounds.neLng));
       if (queryState.region) common.set("region", queryState.region);
-      if (queryState.minPrice) common.set("min_price", queryState.minPrice);
-      if (queryState.maxPrice) common.set("max_price", queryState.maxPrice);
+
+      const normalizedMinPrice = sanitizePriceInput(queryState.minPrice);
+      const normalizedMaxPrice = sanitizePriceInput(queryState.maxPrice);
+      if (normalizedMinPrice) common.set("min_price", normalizedMinPrice);
+      if (normalizedMaxPrice) common.set("max_price", normalizedMaxPrice);
 
       const mapQuery = new URLSearchParams(common);
       mapQuery.set("limit", "300");
@@ -253,14 +270,14 @@ export default function Explorer() {
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 14 }}>
       <header>
         <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>budongsan-v2</h1>
-        <p style={{ color: "#475569" }}>검색 → 지도/리스트 동기화 → 단지 상세</p>
+        <p style={{ color: "#475569" }}>검색-지도-리스트 동기화 기반 MVP</p>
       </header>
 
       <form onSubmit={runSearch} className="explorer-filter-grid">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어(예: 래미안)" className="ui-input" />
         <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="지역코드(예:11680)" className="ui-input" />
-        <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소가(만원)" className="ui-input" />
-        <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대가(만원)" className="ui-input" />
+        <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소가(만원)" className="ui-input" inputMode="numeric" />
+        <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대가(만원)" className="ui-input" inputMode="numeric" />
         <select value={sort} onChange={(e) => setSort(e.target.value as SortValue)} className="ui-input" aria-label="정렬">
           {SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
