@@ -1,9 +1,10 @@
-# PHASE3_EXECUTION_LOG
+﻿# PHASE3_EXECUTION_LOG
 
 - 시작일: 2026-03-01
-- 단계 목표: MVP-3 (Step 2 → Step 3 → Step 4)
+- 단계 목표: MVP-3 (정렬/검색 품질 + 성능/인덱스 + 운영 안정화 + 데이터 커버리지 확장)
+- 최종 갱신: 2026-03-03
 
-## Step 2. 정렬/랭킹/UI
+## Step 2. 정렬/검색/UI
 
 ### 구현
 1. `GET /api/search`
@@ -11,21 +12,20 @@
 - 응답에 `appliedSort`, `totalCount`, `updatedAt` 포함
 
 2. `GET /api/map/complexes`
-- 동일한 `sort` 규칙 적용
+- `search`와 동일 정렬 규칙 적용
 - 응답에 `appliedSort` 포함
 
 3. `components/Explorer.tsx`
-- 깨진 문자열/파싱 오류 전면 복구
 - 정렬 드롭다운 추가
-- 검색/지도/리스트 동기화 유지
-- 0건 상태 빠른 액션(강남/송파/초기화) 추가
-- KST 고정 포맷터로 시간 표시(하이드레이션 불일치 방지)
+- 검색-지도-리스트 동기화 유지
+- 0건 상태 액션(빠른 적용 버튼) 보강
+- 시간 포맷(KST) 고정으로 hydration mismatch 완화
 
 ### 검증
 - `npm run lint` 통과
 - `npm run build` 통과
-- `/api/search?...&sort=price_desc` 정상 응답 확인
-- `/api/map/complexes?...&sort=deal_count` 정상 응답 확인
+- `/api/search?...&sort=price_desc` 정상 응답
+- `/api/map/complexes?...&sort=deal_count` 정상 응답
 
 ## Step 3. 성능/인덱스
 
@@ -34,7 +34,7 @@
 - `pg_trgm` extension
 - `complex.apt_name`, `complex.legal_dong` trigram index
 - `complex(region_id, updated_at)` index
-- `deal_trade_normalized` 복합 인덱스 2종
+- `deal_trade_normalized` 복합 index 2종
 - `deal_trade_raw(ingested_at)` index
 
 2. `package.json`
@@ -48,36 +48,77 @@
 ### 구현
 1. `GET /api/cron/normalize`
 - `x-cron-secret` 또는 `Authorization: Bearer` 인증
-- 성공/실패 시 `audit_log`에 이벤트 기록
-  - `cron_normalize_success`
-  - `cron_normalize_error`
+- 성공/실패 이벤트 `audit_log` 기록
 
 2. `GET /api/ops/data-freshness`
 - 최근 24시간 raw/normalized 집계
 - 최근 cron 실행 이력 조회
 
-3. 런칭 게이트 회귀 스크립트
+3. 런칭 게이트 스모크
 - `npm run qa:smoke`
-- 결과 파일: `docs/LAUNCH_GATE_REPORT_2026-03-01.md`
+- 보고서: `docs/LAUNCH_GATE_REPORT_2026-03-01.md`
 
-### 검증
-- `/api/ops/data-freshness` 로컬 200 확인
-- `/api/cron/normalize` 로컬 503 확인 (`CRON_SECRET` 미설정 상태)
-- `npm run qa:smoke` 통과
-
-## 참고
-- 로컬에서 `cron/normalize`를 200으로 테스트하려면 `.env.local`에 `CRON_SECRET` 추가 후 dev 서버 재시작 필요
-- Vercel은 `CRON_SECRET` 설정 + Redeploy 후 동일 엔드포인트로 200 검증 가능
 ## 2026-03-01 (Location Accuracy P0)
-- `sql/005_location_source.sql` 추가 및 적용 (`complex.location_source`: exact/approx)
+- `sql/005_location_source.sql` 추가/적용 (`complex.location_source`: exact/approx)
 - `package.json` 스크립트 추가: `db:location-source`
 - API 반영:
-  - `/api/search` 응답에 `location_source` 포함
-  - `/api/map/complexes` 응답에 `locationSource` 포함
-  - `/api/complexes/:id` 응답(요약)에 `locationSource` 포함
+  - `/api/search` 응답에 `location_source`
+  - `/api/map/complexes` 응답에 `locationSource`
+  - `/api/complexes/:id` 응답에 `locationSource`
 - UI 반영:
-  - 홈 리스트 카드에 `근사 위치` 배지 노출
-  - 단지 상세에 `근사 위치` 배지 + 신뢰성 안내 문구 노출
+  - 리스트/상세에 `근사 위치` 표시
 - 검증:
   - `npm run lint` 통과
   - `npm run build` 통과
+
+## 2026-03-03 실행 로그 (Data Coverage + Geocode Maintain)
+
+### A. 1차 커버리지 확장
+1. `npm run ingest:molit:dry` 성공
+2. 핵심 5개 구 적재(단일 배치, 3개월)
+- 11680(강남): fetched 261, norm inserted 42
+- 11650(서초): fetched 184, norm inserted 24
+- 11710(송파): fetched 451, norm inserted 62
+- 11440(마포): fetched 219, norm inserted 40
+- 11200(성동): fetched 184, norm inserted 27
+3. `npm run db:normalize` 성공
+4. `npm run qa:parity` PASS
+- `docs/MAP_SEARCH_PARITY_REPORT_2026-03-03.md`
+- `docs/MAP_SEARCH_PARITY_REPORT_2026-03-03.json`
+
+### B. 우선순위 분할 적재(추가)
+- 11470(양천): fetched 400, norm inserted 33
+- 11350(노원): fetched 410, norm inserted 90
+- 11740(강동): fetched 364, norm inserted 39
+- 11500(강서): fetched 460, raw inserted 452, norm inserted 453
+- 11560(영등포): fetched 414, raw inserted 26, norm inserted 62
+
+### C. Geocode Maintain 병행
+1차 실행 결과:
+- exactRatio: 0.6703
+- failRatio: 0.0151
+- 기준 미통과 (`exact >= 0.80`)
+
+2차 실행 결과:
+- exactRatio: 0.7774
+- failRatio: 0.0146
+- 기준 근접
+
+3차 실행 결과(추가 실행):
+- exactRatio: 0.8123
+- failRatio: 0.0108
+- 기준 통과 (`exact >= 0.80`, `fail <= 0.05`)
+
+### D. 현재 상태 요약
+- total complex: 2120
+- exact: 1722
+- approx: 398
+- pending: 322
+- failed: 23
+- permanentFailed: 53
+- 게이트: 통과
+
+## 다음 액션
+1. 서울 나머지 구 분할 적재 계속
+2. 배치마다 `geocode:maintain` 병행
+3. 하루 종료 시점에 gate 수치 기록 및 로그 갱신
