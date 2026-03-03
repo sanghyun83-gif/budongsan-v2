@@ -1,7 +1,7 @@
 ﻿# LOCATION_ACCURACY_PHASE_PLAN
 
 - 작성일: 2026-03-01
-- 갱신일: 2026-03-03
+- 갱신일: 2026-03-04
 - 목적: 지도 검색 신뢰도를 위해 좌표 정확도(Data Quality)와 자동 점검 체계를 고정
 
 ## 원칙
@@ -59,3 +59,17 @@ npm run geocode:maintain
 - map/list 상호작용 UX 개선
 - 상세 위치 신뢰 라벨 정책 고도화
 - 모니터링 대시보드 확장
+
+## 2026-03-04 진행 업데이트
+- 데이터 커버리지 확장 병행으로 total complex가 증가함
+- 최신 게이트 측정값:
+  - total: 2466
+  - exact: 1930
+  - approx: 536
+  - pending: 444
+  - failed: 35
+  - exactRatio: 0.7826
+  - failRatio: 0.0142
+- 해석:
+  - failRatio는 기준(<= 0.05) 충족 상태 유지
+  - exactRatio는 기준(>= 0.80) 직전 구간으로, geocode:maintain 추가 1회 권장

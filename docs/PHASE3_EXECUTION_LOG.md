@@ -122,3 +122,38 @@
 1. 서울 나머지 구 분할 적재 계속
 2. 배치마다 `geocode:maintain` 병행
 3. 하루 종료 시점에 gate 수치 기록 및 로그 갱신
+
+## 2026-03-04 실행 로그 (추가 커버리지 + geocode 병행)
+
+### A. 우선순위 추가 분할 적재
+- 11620(관악, 3개월): fetched 338, norm inserted 14
+- 11590(동작, 3개월): fetched 262, raw inserted 6, norm inserted 99
+- 11380(은평, 3개월): fetched 469, raw inserted 464, norm inserted 464
+- 11530(구로, 2개월): fetched 184, norm inserted 34
+- 11215(광진, 3개월): fetched 106, raw inserted 104, norm inserted 104
+
+### B. 정규화
+- `npm run db:normalize` 실행 완료
+
+### C. geocode:maintain 병행 결과
+1차(추가 커버리지 직후):
+- total: 2466
+- exactRatio: 0.7826
+- failRatio: 0.0142
+- 상태: 미통과(0.80 직전)
+
+2차(추가 1회 실행):
+- total: 2466
+- exact: 1986
+- approx: 480
+- pending: 386
+- failed: 31
+- permanentFailed: 63
+- exactRatio: 0.8054
+- failRatio: 0.0126
+- 상태: 게이트 통과 (`exact >= 0.80`, `fail <= 0.05`)
+
+### D. 누적 요약(현재)
+- total complex: 2466
+- 위치 정확도 게이트: 통과
+- 운영 원칙: 커버리지 배치 1~2회마다 geocode:maintain 병행
