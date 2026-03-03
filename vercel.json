@@ -1,12 +1,12 @@
 {
-    "crons":  [
-                  {
-                      "path":  "/api/cron/normalize",
-                      "schedule":  "0 18 * * *"
-                  },
-                  {
-                      "path":  "/api/cron/geocode-maintain",
-                      "schedule":  "15 */2 * * *"
-                  }
-              ]
+  "crons": [
+    {
+      "path": "/api/cron/normalize",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/geocode-maintain",
+      "schedule": "15 19 * * *"
+    }
+  ]
 }
