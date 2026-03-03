@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description: "Korean real estate MVP",
   verification: {
     google: "qlPMVO_Hb-be3_hFHNT9SBbsHO-b_wCOfWfLmTb4EQc",
+    other: {
+      "naver-site-verification": "03ac0ba4f5a13f5a1fb162e4dbb50ce9ecf3c62c",
+    },
   },
 };
 
@@ -43,3 +46,4 @@ export default function RootLayout({
     </html>
   );
 }
+
