@@ -157,3 +157,162 @@
 - total complex: 2466
 - 위치 정확도 게이트: 통과
 - 운영 원칙: 커버리지 배치 1~2회마다 geocode:maintain 병행
+
+## 2026-03-04 실행 로그 (서울 전수확장 1차)
+
+### 완료된 구 적재
+- 11110(종로, 3개월): fetched 74, raw inserted 72, norm inserted 73
+- 11140(중구, 3개월): fetched 99, raw inserted 99, norm inserted 99
+- 11170(용산, 3개월): fetched 121, raw inserted 116, norm inserted 116
+- 11260(중랑, 3개월): fetched 305, raw inserted 301, norm inserted 302
+- 11230(동대문, 2개월): fetched 149, norm inserted 24
+  - 3개월 배치 타임아웃으로 2개월로 조정
+
+### 상태
+- 서울 미적재 구 중 1차 5개 처리 완료
+- 2차 5개(성북/강북/도봉/서대문/금천)는 다음 실행으로 이월
+
+## 2026-03-05 실행 로그 (서울 2차 완료 후 후속 작업)
+
+### A. 정규화
+- `npm run db:normalize` 실행 완료
+
+### B. geocode:maintain 실행 결과
+- 실행: `npm run geocode:maintain`
+- 초기값:
+  - total: 3218
+  - exactRatio: 0.6172
+  - failRatio: 0.0096
+- 6라운드 종료값:
+  - total: 3218
+  - exact: 2239
+  - approx: 979
+  - pending: 869
+  - failed: 37
+  - permanentFailed: 73
+  - exactRatio: 0.6958
+  - failRatio: 0.0115
+- 상태: failRatio 기준은 통과, exactRatio 기준(0.80)은 미통과
+
+### C. 해석
+- 서울 전수 확장으로 total이 크게 증가하면서 approx/pending이 동반 증가
+- 현재는 geocode 유지 작업을 추가 반복해야 gate 재통과 가능
+
+## 2026-03-05 실행 로그 (geocode:maintain 추가 반복)
+
+### A. 1차 추가 실행
+- 실행: `npm run geocode:maintain`
+- 결과:
+  - total: 3218
+  - exact: 2423
+  - approx: 795
+  - pending: 679
+  - failed: 40
+  - permanentFailed: 76
+  - exactRatio: 0.7530
+  - failRatio: 0.0124
+- 상태: failRatio는 통과, exactRatio는 미통과
+
+### B. 2차 추가 실행
+- 실행: `npm run geocode:maintain`
+- 결과:
+  - total: 3218
+  - exact: 2599
+  - approx: 619
+  - pending: 495
+  - failed: 32
+  - permanentFailed: 92
+  - exactRatio: 0.8076
+  - failRatio: 0.0099
+- 상태: 게이트 통과 (`exact >= 0.80`, `fail <= 0.05`)
+
+## 2026-03-05 실행 로그 (경기 대도시 1차 확장 실행)
+
+### A. 경기 코드별 적재 실행 결과
+- 41465(용인 처인): months=2, fetched 441, norm inserted 266
+- 41281(고양 덕양): months=2, fetched 332, norm inserted 119
+- 41285(고양 일산동): months=2, fetched 125, norm inserted 35
+- 41287(고양 일산서): months=2, fetched 171, norm inserted 56
+- 41590(화성): months=2, fetched 0, norm inserted 0
+
+참고(이전 실행 포함):
+- 41461(용인 수지): months=2, fetched 197, norm inserted 146
+- 41463(용인 기흥): months=1, fetched 23, norm inserted 13
+
+### B. 정규화
+- `npm run db:normalize` 실행 완료
+
+### C. geocode maintain 실행 결과
+1차 실행:
+- total: 4526
+- exact: 2897
+- approx: 1629
+- pending: 1195
+- failed: 34
+- permanentFailed: 92
+- exactRatio: 0.6401
+- failRatio: 0.0075
+- 상태: failRatio 통과, exactRatio 미통과
+
+2차 추가 실행:
+- total: 4526
+- exact: 3149
+- approx: 1377
+- pending: 927
+- failed: 48
+- permanentFailed: 94
+- exactRatio: 0.6958
+- failRatio: 0.0106
+- 상태: failRatio 통과, exactRatio 미통과
+
+### D. parity 점검
+- `npm run qa:parity` 실행
+- 결과: 1건 FAIL
+  - `brand_prugio__seoul_wide__price_asc`
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-05.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-05.json`
+
+### E. 현재 기준 요약
+- total complex: 4526 (목표 4000+ 달성)
+- location gate: exactRatio 기준 미통과, failRatio 기준 통과
+- 다음 우선 작업:
+  1. `geocode:maintain` 반복 실행으로 exactRatio 회복
+  2. parity FAIL 1건 원인 점검/수정
+
+## 2026-03-05 실행 로그 (게이트 회복 추가 실행)
+
+### A. geocode:maintain 추가 2회
+1) 1회 추가 실행 결과:
+- total: 4526
+- exact: 3424
+- approx: 1102
+- pending: 715
+- failed: 56
+- permanentFailed: 94
+- exactRatio: 0.7565
+- failRatio: 0.0124
+- 상태: 미통과 (exactRatio < 0.80)
+
+2) 2회 추가 실행 결과:
+- total: 4526
+- exact: 3658
+- approx: 868
+- pending: 700
+- failed: 62
+- permanentFailed: 106
+- exactRatio: 0.8082
+- failRatio: 0.0137
+- 상태: 게이트 통과 (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. parity 재검증
+- `npm run qa:parity` 재실행
+- 결과: 전체 PASS (이전 1건 FAIL 해소)
+- 리포트 갱신:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-05.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-05.json`
+
+### C. 현재 기준 상태
+- total complex: 4526
+- location gate: PASS
+- map/search parity: PASS
