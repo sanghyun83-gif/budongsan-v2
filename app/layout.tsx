@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "budongsan-v2",
   description: "Korean real estate MVP",
   verification: {
-    google: "qlPMVO_Hb-be3_hFHNT9SBbsHO-b_wCOfWfLmTb4EQc",
+    google: "0LZoKgsWmaQ4yR9KcvPm5aykE5ZGH98tZdJ5C2bmyyg",
     other: {
       "naver-site-verification": "03ac0ba4f5a13f5a1fb162e4dbb50ce9ecf3c62c",
     },
@@ -46,4 +46,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 

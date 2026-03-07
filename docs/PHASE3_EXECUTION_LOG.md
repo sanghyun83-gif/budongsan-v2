@@ -316,3 +316,52 @@
 - total complex: 4526
 - location gate: PASS
 - map/search parity: PASS
+
+## 2026-03-05 실행 로그 (경기 2차 확장 - 타임아웃 분할 실행)
+
+### A. dry-run 점검
+- `41590,41190,41170,41220,41360` (months=2)
+  - 유효: 41220, 41360
+  - 0건: 41590, 41190, 41170
+- 세분화 dry-run (months=3)
+  - 41192 fetched=644
+  - 41194 fetched=368
+  - 41196 fetched=91
+  - 41171 fetched=576
+  - 41173 fetched=592
+  - 41590 fetched=0
+
+### B. 실제 적재 (타임아웃 회피 분할)
+- 41220(평택): months=3 타임아웃 -> months=1 재실행 성공
+  - fetched 21, norm inserted 15
+- 41360(남양주): months=2
+  - fetched 576, raw inserted 569, norm inserted 572
+- 41192(부천 원미): months=2
+  - fetched 243, raw inserted 241, norm inserted 243
+- 41194(부천 소사): months=2
+  - fetched 138, raw inserted 137, norm inserted 137
+- 41196(부천 오정): months=2
+  - fetched 39, raw inserted 38, norm inserted 38
+- 41171(안양 만안): months=2
+  - fetched 227, raw inserted 215, norm inserted 219
+- 41173(안양 동안): months=2
+  - fetched 170, raw inserted 167, norm inserted 169
+
+### C. 후속 실행
+- `npm run db:normalize` 완료
+- `npm run geocode:maintain` 1회 실행:
+  - total: 5307
+  - exact: 3936
+  - approx: 1371
+  - pending: 1209
+  - failed: 56
+  - permanentFailed: 106
+  - exactRatio: 0.7417
+  - failRatio: 0.0106
+  - 상태: failRatio 통과, exactRatio 미통과
+- `npm run qa:parity` 실행: 전체 PASS
+
+### D. 현재 상태
+- total complex: 5307
+- coverage 목표(4000+): 달성 유지
+- location gate: exactRatio 추가 회복 필요
