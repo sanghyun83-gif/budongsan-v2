@@ -503,3 +503,44 @@
 - 리포트 갱신:
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.json`
+
+## 2026-03-08 실행 로그 (송파 202501~202505 배치 확인 + 정합성)
+
+### A. 송파(11710) 월별 커버리지 확인
+- 기준 구간: `202501` ~ `202505`
+- raw 집계:
+  - 202505: 388
+  - 202504: 131
+  - 202503: 913
+  - 202502: 716
+  - 202501: 323
+
+### B. normalize 정합성 확인
+- normalized 집계(동일 구간):
+  - 202505: 400
+  - 202504: 132
+  - 202503: 923
+  - 202502: 723
+  - 202501: 325
+- 후속 실행:
+  - `npm run db:normalize` 완료 (`Applied SQL: sql/003_normalize_from_raw.sql`)
+
+### C. 위치 정확도 게이트 재확인
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 5714
+  - exact: 4608
+  - approx: 1106
+  - pending: 876
+  - failed: 89
+  - permanentFailed: 141
+  - exactRatio: 0.8064
+  - failRatio: 0.0156
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### D. 타깃 단지 포함 여부 점검
+- 쿼리: 강동(11740) `apt_name ilike '%올림픽파크포레온%'`
+- 결과: DB 매칭 0건
+- 해석:
+  - API 원본에는 존재(둔촌동, `202412~202510`)하나
+  - 현재 DB에는 해당 구간 강동 백필이 충분히 반영되지 않아 미포함 상태

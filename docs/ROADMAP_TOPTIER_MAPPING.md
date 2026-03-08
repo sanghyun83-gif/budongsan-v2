@@ -1,37 +1,39 @@
 # ROADMAP_TOPTIER_MAPPING
 
-## 벤치마크 -> MVP-2 매핑
+- Updated: 2026-03-08
+- Source API: MOLIT apartment trade (`RTMSDataSvcAptTradeDev`)
+- Regions scanned: Songpa (`11710`), Gangdong (`11740`)
+- Period scanned: `202401` to `202602`
 
-1. 네이버형 신뢰 레이어
-- 지금 반영:
-  - 데이터 출처 라벨
-  - 최종 업데이트 시각
-- 후속 반영:
-  - 확인매물/검증 workflow 전체
+## Target Mapping Table
+| Product target label | API exact aptNm found | Evidence in API | Mapping status | Included in current DB snapshot |
+|---|---|---|---|---|
+| Olympic Park Foreon | Yes | `aptNm=olympic-park-foreon` equivalent found in Gangdong/Dunchon; first `202412`, last `202510`, count `13` | Exact source name exists; backfill months must include `202412~202510` | Not confirmed yet |
+| Jamsil Le-El | No | No aptNm match for `jamsil + le-el` tokens in Songpa/Gangdong scan | Likely source naming mismatch or no published trade records in scanned period | No |
+| Jamsil Raemian I-Park | No | No aptNm match for `jamsil + raemian + ipark` tokens in Songpa/Gangdong scan | Likely source naming mismatch or no published trade records in scanned period | No |
 
-2. 호갱노노형 단지 데이터 깊이(최소판)
-- 지금 반영:
-  - 최근 거래가
-  - 최근 3개월 거래량
-  - 단순 평형대 최근가
-- 후속 반영:
-  - 커뮤니티/인사이트 모듈
+## Supporting Signals From Source aptNm
 
-3. 다방형 지도 탐색 루프
-- 지금 반영:
-  - pan/zoom -> 즉시 재조회
-  - 필터 상태 유지
-- 후속 반영:
-  - 동네 커뮤니티 기능
+### Songpa (`11710`) notable names
+- `Lecents`: count 417 (`202401~202602`)
+- `Jamsil Els`: count 349 (`202401~202602`)
+- `Jugong Apt 5`: count 299 (`202401~202602`)
+- `Trizium`: count 270 (`202402~202602`)
+- `Lake Palace`: count 180 (`202401~202601`)
 
-4. 직방형 전환 동선
-- 지금 반영:
-  - 상세 CTA placeholder(관심/알림/문의)
-- 후속 반영:
-  - AI concierge, pro agent 도구
+### Gangdong (`11740`) notable names
+- `Dunchon Prugio`: count 132 (`202401~202602`)
+- `Sinsung Dunchon Misojium 1`: count 88 (`202402~202601`)
+- `Sinsung Dunchon Misojium 2`: count 46 (`202403~202601`)
+- `The Sharp Dunchon Fore`: count 30 (`202407~202510`)
+- `Olympic Park Foreon`: count 13 (`202412~202510`)
 
-## 우선순위
-1. P0: 신뢰 라벨 + 지도 루프 + 기본 상세 지표
-2. P1: ingest 자동화 + 지표 고도화
-3. P2: 운영 체계 + 수익화 + AI
+## Why the target can be missing in DB even if found in API
+1. Recent-month-only backfill (for example `202602`) misses targets whose latest records are in older months.
+2. Product/marketing names can differ from source `aptNm`.
+3. Current pipeline ingests apartment sale only (no jeonse/wolse ingestion yet).
 
+## Next action for this target set
+1. Run targeted backfill for Songpa/Gangdong months `202412~202510`.
+2. Run normalize and re-check exact `aptNm` presence in DB.
+3. Keep an alias dictionary only when source name is consistently different from product label.
