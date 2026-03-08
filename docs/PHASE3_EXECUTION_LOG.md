@@ -365,3 +365,141 @@
 - total complex: 5307
 - coverage 목표(4000+): 달성 유지
 - location gate: exactRatio 추가 회복 필요
+
+## 2026-03-08 실행 로그 (화성 41590 월별 분할 점검)
+
+### A. ingest 스크립트 개선 적용
+- `scripts/ingest-molit.mjs`
+  - 월 지정 옵션 추가: `--dealYmd=YYYYMM`
+  - 기간 지정 옵션 추가: `--startYmd=YYYYMM --endYmd=YYYYMM`
+  - 월별 fetch 로그 출력 추가
+
+### B. 화성(41590) 실행 결과
+1) 단일 월 dry-run
+- 명령: `npm run ingest:molit -- --regions=41590 --dealYmd=202602 --dryRun=true`
+- 결과: `month=202602 fetched=0`, `normalized=0`
+
+2) 최근 12개월 월별 dry-run
+- 명령: `npm run ingest:molit -- --regions=41590 --startYmd=202503 --endYmd=202602 --dryRun=true`
+- 결과:
+  - 202602~202503 전월 `fetched=0`
+  - 합계 `fetched=0`, `normalized=0`
+
+3) 실제 적재 + 정규화 실행
+- 명령: `npm run ingest:molit -- --regions=41590 --dealYmd=202602 --maxPerRegion=5000`
+  - 결과: `fetched=0`, `totalRawInserted=0`, `totalNormInserted=0`
+- 명령: `npm run db:normalize`
+  - 결과: `Applied SQL: sql/003_normalize_from_raw.sql`
+
+### C. 판단
+- 타임아웃 이슈는 월 분할로 우회 가능하게 준비되었지만,
+- 화성(41590)은 최근 12개월 기준 API 응답 자체가 0건으로 확인됨.
+
+### D. 다음 점검 항목
+1. MOLIT 시군구 코드 매핑 재확인(화성 대응 코드/세분 코드 확인)
+2. 화성 대체 코드 후보로 단월 dry-run 재검증
+3. 코드 확인 전까지 coverage 집계에서 화성은 별도 이슈 트래킹 유지
+
+## 2026-03-08 실행 로그 (화성 API 코드 전수 점검)
+
+### A. 415xx 코드 스캔 결과 (MOLIT 직접 조회)
+- 스캔 월: `202602`, `202512`, `202412`
+- 공통 패턴:
+  - `41590` = 0건
+  - 비영(非0) 코드 = `41591`, `41593`, `41595`, `41597` (+ 타 시군 코드 일부)
+- 샘플 검증:
+  - `41597`: 청계동/목동/석우동(동탄권) 단지 다수
+  - `41595`: 병점/진안/반월
+  - `41591`: 향남/남양/새솔
+  - `41593`: 봉담/정남/비봉
+
+### B. 결론
+- 화성은 기존 단일 코드 `41590`로는 수집되지 않고,
+- 분할 코드 `41591,41593,41595,41597`로 조회해야 수집 가능.
+
+### C. 코드 반영
+- `scripts/ingest-molit.mjs`에 region alias 확장 추가:
+  - `41590 -> 41591,41593,41595,41597`
+  - `41190 -> 41192,41194,41196` (부천)
+  - `41170 -> 41171,41173` (안양)
+- 검증:
+  - 명령: `npm run ingest:molit -- --regions=41590 --dealYmd=202602 --dryRun=true`
+  - 결과: 자동 확장 후 합계 `fetched=1129`
+
+## 2026-03-08 실행 로그 (화성 1개월+코드별 분할 실제 적재)
+
+### A. 배치 전략 전환
+- 배치 단위: `1개월 + 1코드`
+- 이유: `41590` 통합 실행은 장시간 소요/타임아웃 리스크가 높음
+
+### B. 202601 실제 적재 결과 (코드별)
+- `41597`(동탄권): fetched 999, norm inserted 617
+- `41595`(병점/진안권): fetched 243, norm inserted 123
+- `41593`(봉담/정남권): fetched 134, norm inserted 109
+- `41591`(향남/남양권): fetched 114, norm inserted 92
+
+합계:
+- fetched 1,490
+- norm inserted 941
+
+### C. 202602 참고 결과
+- alias 적용 실행(`--regions=41590 --dealYmd=202602`) 결과:
+  - fetched 1,129
+  - norm inserted 744
+
+### D. 후속
+- `npm run db:normalize` 완료 (`Applied SQL: sql/003_normalize_from_raw.sql`)
+
+## 2026-03-08 실행 로그 (화성 202512 + maintain/parity)
+
+### A. 화성 202512 코드별 실제 적재
+- `41597`: fetched 723, raw inserted 697, norm inserted 714
+- `41595`: fetched 200, raw inserted 194, norm inserted 196
+- `41593`: fetched 149, raw inserted 144, norm inserted 148
+- `41591`: fetched 106, raw inserted 105, norm inserted 106
+
+합계:
+- fetched 1,178
+- raw inserted 1,140
+- norm inserted 1,164
+
+### B. geocode:maintain 실행
+- 명령: `npm run geocode:maintain`
+- 최종 지표:
+  - total: 5632
+  - exact: 4156
+  - approx: 1476
+  - pending: 1268
+  - failed: 96
+  - permanentFailed: 112
+  - exactRatio: 0.7379
+  - failRatio: 0.0170
+- 결과: strict FAIL (`exactRatio < 0.80`)
+
+### C. parity 실행
+- 명령: `npm run qa:parity`
+- 결과: 1건 FAIL
+  - `brand_hillstate__seoul_wide__price_asc`
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.json`
+
+## 2026-03-08 실행 로그 (게이트 회복 + parity 재실행)
+
+### A. geocode:maintain 추가 반복
+1) 1회 추가 실행:
+- exactRatio: 0.7843
+- failRatio: 0.0201
+- 결과: strict FAIL (`exactRatio < 0.80`)
+
+2) 2회 추가 실행:
+- exactRatio: 0.8061
+- failRatio: 0.0199
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. parity 재실행
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (직전 1건 FAIL 재현되지 않음)
+- 리포트 갱신:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.json`

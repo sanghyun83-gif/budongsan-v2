@@ -6,6 +6,13 @@ import { Pool } from "pg";
 const API_BASE = "https://apis.data.go.kr/1613000";
 const TRADE_ENDPOINT = `${API_BASE}/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`;
 
+// Some legacy city-level codes are now served as split codes in the MOLIT API.
+const REGION_CODE_ALIASES = {
+  "41590": ["41591", "41593", "41595", "41597"], // 화성
+  "41190": ["41192", "41194", "41196"], // 부천
+  "41170": ["41171", "41173"] // 안양
+};
+
 const REGION_META = {
   "11110": { sido: "seoul", sigungu: "jongno", nameKo: "종로구", center: { lat: 37.5729, lng: 126.9794 } },
   "11140": { sido: "seoul", sigungu: "jung", nameKo: "중구", center: { lat: 37.5638, lng: 126.9976 } },
@@ -58,11 +65,67 @@ function parseArgs() {
   }
 
   const defaultRegions = ["11680", "11650", "11710", "11440", "11200", "11590", "11620", "11560", "11500", "11740"];
-  const regions = (argMap.get("regions") ? argMap.get("regions").split(",") : defaultRegions).map((x) => x.trim());
+  const requestedRegions = (argMap.get("regions") ? argMap.get("regions").split(",") : defaultRegions).map((x) => x.trim());
+  const regions = [...new Set(requestedRegions.flatMap((code) => REGION_CODE_ALIASES[code] ?? [code]))];
   const months = Number(argMap.get("months") ?? "3");
   const maxPerRegion = Number(argMap.get("maxPerRegion") ?? "8000");
   const dryRun = argMap.get("dryRun") === "true";
-  return { regions, months, maxPerRegion, dryRun };
+  const dealYmd = argMap.get("dealYmd");
+  const startYmd = argMap.get("startYmd");
+  const endYmd = argMap.get("endYmd");
+  return { regions, requestedRegions, months, maxPerRegion, dryRun, dealYmd, startYmd, endYmd };
+}
+
+function parseYmd(yyyymm) {
+  if (!/^\d{6}$/.test(yyyymm)) return null;
+  const year = Number(yyyymm.slice(0, 4));
+  const month = Number(yyyymm.slice(4, 6));
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
+  return new Date(year, month - 1, 1);
+}
+
+function toYmd(date) {
+  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildTargetMonths({ now, months, dealYmd, startYmd, endYmd }) {
+  if (dealYmd) {
+    const parsed = parseYmd(dealYmd);
+    if (!parsed) throw new Error(`Invalid --dealYmd: ${dealYmd} (expected YYYYMM)`);
+    return [dealYmd];
+  }
+
+  if (startYmd || endYmd) {
+    if (!startYmd || !endYmd) {
+      throw new Error("Both --startYmd and --endYmd are required together");
+    }
+    const start = parseYmd(startYmd);
+    const end = parseYmd(endYmd);
+    if (!start || !end) {
+      throw new Error(`Invalid month range: start=${startYmd}, end=${endYmd} (expected YYYYMM)`);
+    }
+    if (start > end) {
+      throw new Error(`Invalid month range: start=${startYmd} is after end=${endYmd}`);
+    }
+
+    const yyyymms = [];
+    let cursor = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (cursor >= start) {
+      yyyymms.push(toYmd(cursor));
+      cursor = addMonths(cursor, -1);
+    }
+    return yyyymms;
+  }
+
+  if (!Number.isInteger(months) || months <= 0) {
+    throw new Error(`Invalid --months: ${months} (must be a positive integer)`);
+  }
+
+  const yyyymms = [];
+  for (let i = 0; i < months; i += 1) {
+    yyyymms.push(monthKey(addMonths(now, -i)));
+  }
+  return yyyymms;
 }
 
 function extract(xml, tag) {
@@ -182,7 +245,7 @@ async function fetchDealsByMonth(regionCode, yyyymm) {
 
 async function main() {
   loadEnvLocal();
-  const { regions, months, maxPerRegion, dryRun } = parseArgs();
+  const { regions, requestedRegions, months, maxPerRegion, dryRun, dealYmd, startYmd, endYmd } = parseArgs();
 
   if (!process.env.DATABASE_URL) throw new Error("Missing DATABASE_URL in environment or .env.local");
 
@@ -198,6 +261,10 @@ async function main() {
 
   try {
     const now = new Date();
+    const targetMonths = buildTargetMonths({ now, months, dealYmd, startYmd, endYmd });
+    if (requestedRegions.join(",") !== regions.join(",")) {
+      console.log(`[ingest] expanded regions: requested=${requestedRegions.join(",")} resolved=${regions.join(",")}`);
+    }
 
     for (const regionCode of regions) {
       const meta = REGION_META[regionCode] ?? {
@@ -226,9 +293,9 @@ async function main() {
       }
 
       const monthDeals = [];
-      for (let i = 0; i < months; i += 1) {
-        const yyyymm = monthKey(addMonths(now, -i));
+      for (const yyyymm of targetMonths) {
         const fetched = await fetchDealsByMonth(regionCode, yyyymm);
+        console.log(`[ingest] region=${regionCode} month=${yyyymm} fetched=${fetched.length}`);
         monthDeals.push(...fetched);
       }
 
@@ -309,7 +376,11 @@ async function main() {
 
     console.log("[ingest] done", {
       regions: regions.length,
-      months,
+      months: targetMonths.length,
+      monthRange: {
+        newest: targetMonths[0],
+        oldest: targetMonths[targetMonths.length - 1]
+      },
       totalDealsSeen,
       totalRawInserted,
       totalNormInserted,
