@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HomeMap from "@/components/HomeMap";
+import { trackEvent } from "@/lib/analytics";
 import type { MapComplex } from "@/lib/types";
 
 type SearchItem = {
@@ -216,6 +217,13 @@ export default function Explorer() {
       setSearchItems(searchJson.items ?? []);
       setMapItems(mapJson.complexes ?? []);
       setUpdatedAt(searchJson.updatedAt ?? null);
+      trackEvent("search", {
+        search_term: queryState.q,
+        region_code: queryState.region || undefined,
+        results_count: Array.isArray(searchJson.items) ? searchJson.items.length : 0,
+        exact_only: queryState.exactOnly,
+        sort: queryState.sort
+      });
       syncUrl();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");

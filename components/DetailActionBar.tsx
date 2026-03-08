@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 interface DetailActionBarProps {
   complexId: number;
@@ -15,8 +16,19 @@ const ACTIONS = [
 export default function DetailActionBar({ complexId }: DetailActionBarProps) {
   const [pending, setPending] = useState<string | null>(null);
 
+  useEffect(() => {
+    trackEvent("view_complex_detail", {
+      complex_id: complexId
+    });
+  }, [complexId]);
+
   async function clickAction(action: (typeof ACTIONS)[number]["key"]) {
     setPending(action);
+    trackEvent("cta_click", {
+      action,
+      complex_id: complexId,
+      source: "complex_detail"
+    });
     try {
       await fetch("/api/events/cta", {
         method: "POST",
@@ -50,4 +62,3 @@ export default function DetailActionBar({ complexId }: DetailActionBarProps) {
     </section>
   );
 }
-
