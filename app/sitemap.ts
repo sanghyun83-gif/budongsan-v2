@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "https://budongsan-v2.vercel.app";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "https://saljip.kr";
 
 async function getRecentComplexIds(limit = 500): Promise<number[]> {
   if (!hasDatabaseUrl()) return [];
