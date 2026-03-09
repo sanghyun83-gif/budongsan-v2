@@ -106,3 +106,76 @@
 - Report files refreshed:
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-08.json`
+
+## 7) Additional Follow-up (Saved)
+
+### 7.1 Songpa/Gangdong top-tier verification
+- Re-checked target complexes in docs + DB context.
+- Result at that point:
+  - `Olympic Park Foreon`: source evidence exists in API period scan, but DB inclusion not yet confirmed.
+  - `Jamsil Le-El`: no source aptNm match in scanned period.
+  - `Jamsil Raemian I-Park`: no source aptNm match in scanned period.
+
+### 7.2 Songpa recent-month backfill and normalization
+- Executed backfill for Songpa (`11710`) recent month(s), then normalize.
+- Confirmed monthly raw coverage for `202501~202505`:
+  - 202505: 388
+  - 202504: 131
+  - 202503: 913
+  - 202502: 716
+  - 202501: 323
+- Confirmed normalized coverage for same range:
+  - 202505: 400
+  - 202504: 132
+  - 202503: 923
+  - 202502: 723
+  - 202501: 325
+
+### 7.3 Accuracy gate check after follow-up
+- Re-ran `geocode:maintain` and verified strict PASS:
+  - exactRatio: 0.8064
+  - failRatio: 0.0156
+
+### 7.4 Mapping document update
+- Rewrote `docs/ROADMAP_TOPTIER_MAPPING.md` as an ASCII-safe mapping summary to avoid mojibake.
+- Included target mapping status and next operational steps.
+
+### 7.5 Logging status
+- Added latest operational results to `docs/PHASE3_EXECUTION_LOG.md`:
+  - Songpa `202501~202505` coverage check
+  - normalize consistency
+  - geocode gate pass
+  - target complex inclusion check
+
+## 8) Additional Execution (2026-03-10)
+
+### 8.1 Gangdong target backfill completed (`202412~202510`)
+- Executed month-by-month ingest for `11740` and normalized after each month.
+- Monthly results:
+  - 202510: fetched 587, raw inserted 546, norm inserted 551
+  - 202509: fetched 837, raw inserted 794, norm inserted 801
+  - 202508: fetched 359, raw inserted 338, norm inserted 341
+  - 202507: fetched 214, raw inserted 203, norm inserted 205
+  - 202506: fetched 988, raw inserted 887, norm inserted 906
+  - 202505: fetched 577, raw inserted 517, norm inserted 530
+  - 202504: fetched 327, raw inserted 300, norm inserted 304
+  - 202503: fetched 660, raw inserted 602, norm inserted 609
+  - 202502: fetched 421, raw inserted 390, norm inserted 396
+  - 202501: fetched 206, raw inserted 182, norm inserted 187
+  - 202412: fetched 259, raw inserted 211, norm inserted 213
+- Totals:
+  - fetched 5435
+  - raw inserted 4970
+  - norm inserted 5043
+
+### 8.2 Gate re-check passed
+- `npm run geocode:maintain` final metrics:
+  - exactRatio: 0.8079
+  - failRatio: 0.0167
+- Strict gate PASS (`exact >= 0.80`, `fail <= 0.05`).
+
+### 8.3 Parity re-check passed
+- `npm run qa:parity` final result: PASS 72/72
+- Report files:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.json`

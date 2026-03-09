@@ -544,3 +544,46 @@
 - 해석:
   - API 원본에는 존재(둔촌동, `202412~202510`)하나
   - 현재 DB에는 해당 구간 강동 백필이 충분히 반영되지 않아 미포함 상태
+
+## 2026-03-10 실행 로그 (강동 202412~202510 타깃 백필 + gate/parity 재확인)
+
+### A. 강동(11740) 월별 타깃 백필 + 배치 normalize
+- 실행 방식: `1개월 단위 ingest -> 즉시 normalize`
+- 대상 월: `202412, 202501, 202502, 202503, 202504, 202505, 202506, 202507, 202508, 202509, 202510`
+- 월별 결과:
+  - 202510: fetched 587, raw inserted 546, norm inserted 551
+  - 202509: fetched 837, raw inserted 794, norm inserted 801
+  - 202508: fetched 359, raw inserted 338, norm inserted 341
+  - 202507: fetched 214, raw inserted 203, norm inserted 205
+  - 202506: fetched 988, raw inserted 887, norm inserted 906
+  - 202505: fetched 577, raw inserted 517, norm inserted 530
+  - 202504: fetched 327, raw inserted 300, norm inserted 304
+  - 202503: fetched 660, raw inserted 602, norm inserted 609
+  - 202502: fetched 421, raw inserted 390, norm inserted 396
+  - 202501: fetched 206, raw inserted 182, norm inserted 187
+  - 202412: fetched 259, raw inserted 211, norm inserted 213
+
+합계:
+- fetched 5,435
+- raw inserted 4,970
+- norm inserted 5,043
+
+### B. gate 재확인 (`geocode:maintain`)
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 5924
+  - exact: 4786
+  - approx: 1138
+  - pending: 889
+  - failed: 99
+  - permanentFailed: 150
+  - exactRatio: 0.8079
+  - failRatio: 0.0167
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. parity 재확인 (`qa:parity`)
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 갱신:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.json`
