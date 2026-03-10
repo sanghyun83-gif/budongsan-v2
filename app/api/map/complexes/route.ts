@@ -65,12 +65,12 @@ async function fetchFromDatabase(
 
   const orderBy =
     sort === "price_asc"
-      ? "latest.deal_amount_manwon ASC NULLS LAST, c.id DESC"
+      ? "latest.deal_amount_manwon ASC NULLS LAST, scored.rank_score DESC, c.id DESC"
       : sort === "price_desc"
-        ? "latest.deal_amount_manwon DESC NULLS LAST, c.id DESC"
+        ? "latest.deal_amount_manwon DESC NULLS LAST, scored.rank_score DESC, c.id DESC"
         : sort === "deal_count"
           ? "stats.deal_count_3m DESC, latest.deal_date DESC NULLS LAST, c.id DESC"
-          : "latest.deal_date DESC NULLS LAST, c.id DESC";
+          : "latest.deal_date DESC NULLS LAST, scored.rank_score DESC, c.id DESC";
 
   const result = await pool.query(
     `
@@ -100,6 +100,21 @@ async function fetchFromDatabase(
       WHERE d.complex_id = c.id
         AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
     ) stats ON true
+    CROSS JOIN LATERAL (
+      SELECT
+        CASE
+          WHEN c.apt_name ILIKE $11 THEN 300
+          WHEN c.legal_dong ILIKE $11 THEN 250
+          WHEN c.apt_name ILIKE $6 THEN 180
+          WHEN c.legal_dong ILIKE $6 THEN 140
+          ELSE 0
+        END
+        + CASE
+          WHEN latest.deal_date >= (CURRENT_DATE - INTERVAL '30 days') THEN 40
+          WHEN latest.deal_date >= (CURRENT_DATE - INTERVAL '90 days') THEN 20
+          ELSE 0
+        END AS rank_score
+    ) scored
     WHERE c.location IS NOT NULL
       AND ($6::TEXT IS NULL OR c.apt_name ILIKE $6 OR c.legal_dong ILIKE $6)
       AND ($7::VARCHAR IS NULL OR r.code = $7)
@@ -110,7 +125,19 @@ async function fetchFromDatabase(
     ORDER BY ${orderBy}
     LIMIT $5
     `,
-    [swLng, swLat, neLng, neLat, limit, q ? `%${q}%` : null, region ?? null, minPrice ?? null, maxPrice ?? null, exactOnly]
+    [
+      swLng,
+      swLat,
+      neLng,
+      neLat,
+      limit,
+      q ? `%${q}%` : null,
+      region ?? null,
+      minPrice ?? null,
+      maxPrice ?? null,
+      exactOnly,
+      q ?? null
+    ]
   );
 
   return result.rows.map((r) => ({
