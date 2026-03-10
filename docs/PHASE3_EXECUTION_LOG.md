@@ -788,3 +788,43 @@
 - 리포트 갱신:
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.json`
+
+## 2026-03-11 실행 로그 (용산 11170 갭 해소: 202503~202509)
+
+### A. 202503~202509 월별 적재 + 배치 normalize
+- 방식: 월 단위 적재 후 즉시 `db:normalize`
+- 월별 결과:
+  - 202503: fetched 299, raw inserted 278, norm inserted 281
+  - 202504: fetched 43, raw inserted 39, norm inserted 40
+  - 202505: fetched 92, raw inserted 82, norm inserted 82
+  - 202506: fetched 169, raw inserted 149, norm inserted 150
+  - 202507: fetched 152, raw inserted 133, norm inserted 139
+  - 202508: fetched 148, raw inserted 133, norm inserted 145
+  - 202509: fetched 147, raw inserted 121, norm inserted 139
+
+합계:
+- fetched 1,050
+- raw inserted 935
+- norm inserted 976
+
+## 2026-03-11 실행 로그 (용산 후 gate/parity 재확인)
+
+### A. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 6338
+  - exact: 5109
+  - approx: 1229
+  - pending: 1007
+  - failed: 32
+  - permanentFailed: 190
+  - exactRatio: 0.8061
+  - failRatio: 0.0050
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 갱신:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.json`
