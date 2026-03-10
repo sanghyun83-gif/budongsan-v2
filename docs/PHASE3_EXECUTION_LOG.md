@@ -587,3 +587,84 @@
 - 리포트 갱신:
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-09.json`
+
+## 2026-03-10 실행 로그 (강동 11740 갭 해소: 202511~202512)
+
+### A. 202511 적재 + 정규화
+- 명령: `npm run ingest:molit -- --regions=11740 --dealYmd=202511 --maxPerRegion=5000`
+- 결과: fetched 116, raw inserted 110, norm inserted 111
+- 정규화: `npm run db:normalize` 완료
+
+### B. 202512 적재 + 정규화
+- 명령: `npm run ingest:molit -- --regions=11740 --dealYmd=202512 --maxPerRegion=5000`
+- 결과: fetched 213, raw inserted 213, norm inserted 213
+- 정규화: `npm run db:normalize` 완료
+
+### C. 확인
+- raw 집계(11740, 202511~202512):
+  - 202511: 110
+  - 202512: 213
+
+## 2026-03-10 실행 로그 (gate/parity 재확인)
+
+### A. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 5940
+  - exact: 4786
+  - approx: 1154
+  - pending: 889
+  - failed: 99
+  - permanentFailed: 150
+  - exactRatio: 0.8057
+  - failRatio: 0.0167
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 1건 FAIL
+  - `brand_xi__seoul_wide__price_asc`
+  - note: onlySearch=26455 onlyMap=32790
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.json`
+
+## 2026-03-10 실행 로그 (강남 11680 갭 해소: 202503~202509)
+
+### A. 202503~202509 월별 적재 + 배치 normalize
+- 방식: 월 단위 적재 후 즉시 `db:normalize`
+- 월별 결과:
+  - 202503: fetched 917, raw inserted 853, norm inserted 860
+  - 202504: fetched 128, raw inserted 113, norm inserted 114
+  - 202505: fetched 290, raw inserted 260, norm inserted 265
+  - 202506: fetched 610, raw inserted 536, norm inserted 543
+  - 202507: fetched 376, raw inserted 338, norm inserted 343
+  - 202508: fetched 128, raw inserted 117, norm inserted 118
+  - 202509: fetched 232, raw inserted 224, norm inserted 225
+
+합계:
+- fetched 2,681
+- raw inserted 2,441
+- norm inserted 2,468
+
+## 2026-03-10 실행 로그 (강남 후 gate/parity 재확인)
+
+### A. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 6057
+  - exact: 4846
+  - approx: 1211
+  - pending: 956
+  - failed: 47
+  - permanentFailed: 208
+  - exactRatio: 0.8001
+  - failRatio: 0.0078
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 갱신:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.json`
