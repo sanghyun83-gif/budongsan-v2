@@ -1,6 +1,6 @@
 {
   "baseUrl": "https://budongsan-v2.vercel.app",
-  "startedAt": "2026-03-10T11:26:17.646Z",
+  "startedAt": "2026-03-10T12:39:23.682Z",
   "totalCases": 72,
   "pass": 72,
   "fail": 0,
@@ -17,7 +17,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 2273,
+      "durationMs": 2719,
       "error": null
     },
     {
@@ -32,7 +32,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 488,
+      "durationMs": 443,
       "error": null
     },
     {
@@ -47,7 +47,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 271,
+      "durationMs": 255,
       "error": null
     },
     {
@@ -62,7 +62,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 245,
+      "durationMs": 248,
       "error": null
     },
     {
@@ -72,12 +72,12 @@
       "sort": "latest",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 38,
-      "mapCount": 38,
+      "searchCount": 41,
+      "mapCount": 41,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -87,12 +87,12 @@
       "sort": "price_desc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 38,
-      "mapCount": 38,
+      "searchCount": 41,
+      "mapCount": 41,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 227,
+      "durationMs": 224,
       "error": null
     },
     {
@@ -102,12 +102,12 @@
       "sort": "price_asc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 38,
-      "mapCount": 38,
+      "searchCount": 41,
+      "mapCount": 41,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 226,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -117,12 +117,12 @@
       "sort": "deal_count",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 38,
-      "mapCount": 38,
+      "searchCount": 41,
+      "mapCount": 41,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 467,
       "error": null
     },
     {
@@ -132,12 +132,12 @@
       "sort": "latest",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 19,
-      "mapCount": 19,
+      "searchCount": 20,
+      "mapCount": 20,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 231,
+      "durationMs": 238,
       "error": null
     },
     {
@@ -147,12 +147,12 @@
       "sort": "price_desc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 19,
-      "mapCount": 19,
+      "searchCount": 20,
+      "mapCount": 20,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 226,
+      "durationMs": 233,
       "error": null
     },
     {
@@ -162,12 +162,12 @@
       "sort": "price_asc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 19,
-      "mapCount": 19,
+      "searchCount": 20,
+      "mapCount": 20,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 224,
+      "durationMs": 227,
       "error": null
     },
     {
@@ -177,12 +177,12 @@
       "sort": "deal_count",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 19,
-      "mapCount": 19,
+      "searchCount": 20,
+      "mapCount": 20,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -197,7 +197,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 293,
+      "durationMs": 347,
       "error": null
     },
     {
@@ -212,7 +212,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 256,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -227,7 +227,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 243,
+      "durationMs": 239,
       "error": null
     },
     {
@@ -242,7 +242,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 239,
+      "durationMs": 245,
       "error": null
     },
     {
@@ -257,7 +257,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 227,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -272,7 +272,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 236,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -287,7 +287,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 233,
+      "durationMs": 238,
       "error": null
     },
     {
@@ -302,7 +302,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 234,
+      "durationMs": 264,
       "error": null
     },
     {
@@ -317,7 +317,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 243,
+      "durationMs": 244,
       "error": null
     },
     {
@@ -332,7 +332,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 260,
       "error": null
     },
     {
@@ -347,7 +347,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 234,
+      "durationMs": 344,
       "error": null
     },
     {
@@ -362,7 +362,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 931,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -377,7 +377,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 282,
+      "durationMs": 263,
       "error": null
     },
     {
@@ -392,7 +392,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -407,7 +407,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 249,
+      "durationMs": 229,
       "error": null
     },
     {
@@ -422,7 +422,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 239,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -432,12 +432,12 @@
       "sort": "latest",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 234,
+      "durationMs": 261,
       "error": null
     },
     {
@@ -447,12 +447,12 @@
       "sort": "price_desc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 238,
       "error": null
     },
     {
@@ -462,12 +462,12 @@
       "sort": "price_asc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 247,
+      "durationMs": 240,
       "error": null
     },
     {
@@ -477,12 +477,12 @@
       "sort": "deal_count",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 496,
+      "durationMs": 939,
       "error": null
     },
     {
@@ -497,7 +497,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 267,
+      "durationMs": 249,
       "error": null
     },
     {
@@ -512,7 +512,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 339,
+      "durationMs": 244,
       "error": null
     },
     {
@@ -527,7 +527,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 327,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -542,7 +542,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 311,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -557,7 +557,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 323,
+      "durationMs": 270,
       "error": null
     },
     {
@@ -572,7 +572,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 335,
+      "durationMs": 464,
       "error": null
     },
     {
@@ -587,7 +587,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 394,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -602,7 +602,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 385,
+      "durationMs": 275,
       "error": null
     },
     {
@@ -612,12 +612,12 @@
       "sort": "latest",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 320,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -627,12 +627,12 @@
       "sort": "price_desc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 327,
+      "durationMs": 233,
       "error": null
     },
     {
@@ -642,12 +642,12 @@
       "sort": "price_asc",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 237,
+      "durationMs": 219,
       "error": null
     },
     {
@@ -657,12 +657,12 @@
       "sort": "deal_count",
       "searchStatus": 200,
       "mapStatus": 200,
-      "searchCount": 10,
-      "mapCount": 10,
+      "searchCount": 9,
+      "mapCount": 9,
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 330,
+      "durationMs": 220,
       "error": null
     },
     {
@@ -677,7 +677,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 329,
+      "durationMs": 242,
       "error": null
     },
     {
@@ -692,7 +692,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 474,
+      "durationMs": 238,
       "error": null
     },
     {
@@ -707,7 +707,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 350,
+      "durationMs": 274,
       "error": null
     },
     {
@@ -722,7 +722,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 232,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -737,7 +737,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 440,
+      "durationMs": 245,
       "error": null
     },
     {
@@ -752,7 +752,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 390,
+      "durationMs": 247,
       "error": null
     },
     {
@@ -767,7 +767,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 411,
+      "durationMs": 235,
       "error": null
     },
     {
@@ -782,7 +782,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -797,7 +797,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 386,
+      "durationMs": 223,
       "error": null
     },
     {
@@ -812,7 +812,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 384,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -827,7 +827,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 396,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -842,7 +842,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 220,
+      "durationMs": 226,
       "error": null
     },
     {
@@ -857,7 +857,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 219,
+      "durationMs": 223,
       "error": null
     },
     {
@@ -872,7 +872,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 218,
+      "durationMs": 217,
       "error": null
     },
     {
@@ -887,7 +887,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 219,
+      "durationMs": 225,
       "error": null
     },
     {
@@ -902,7 +902,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 221,
       "error": null
     },
     {
@@ -917,7 +917,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 242,
+      "durationMs": 248,
       "error": null
     },
     {
@@ -932,7 +932,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 286,
+      "durationMs": 236,
       "error": null
     },
     {
@@ -947,7 +947,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 249,
+      "durationMs": 236,
       "error": null
     },
     {
@@ -962,7 +962,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 218,
+      "durationMs": 255,
       "error": null
     },
     {
@@ -977,7 +977,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 214,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -992,7 +992,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 215,
+      "durationMs": 229,
       "error": null
     },
     {
@@ -1007,7 +1007,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 220,
+      "durationMs": 221,
       "error": null
     },
     {
@@ -1022,7 +1022,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 217,
+      "durationMs": 222,
       "error": null
     },
     {
@@ -1037,7 +1037,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 216,
+      "durationMs": 236,
       "error": null
     },
     {
@@ -1052,7 +1052,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 285,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -1067,7 +1067,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 217,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -1082,7 +1082,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 214,
+      "durationMs": 254,
       "error": null
     }
   ]
