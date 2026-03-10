@@ -1,6 +1,6 @@
 {
   "baseUrl": "https://budongsan-v2.vercel.app",
-  "startedAt": "2026-03-10T08:20:49.016Z",
+  "startedAt": "2026-03-10T11:26:17.646Z",
   "totalCases": 72,
   "pass": 72,
   "fail": 0,
@@ -17,7 +17,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 1958,
+      "durationMs": 2273,
       "error": null
     },
     {
@@ -32,7 +32,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 561,
+      "durationMs": 488,
       "error": null
     },
     {
@@ -47,7 +47,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 254,
+      "durationMs": 271,
       "error": null
     },
     {
@@ -62,7 +62,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 437,
+      "durationMs": 245,
       "error": null
     },
     {
@@ -77,7 +77,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 235,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -92,7 +92,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 239,
+      "durationMs": 227,
       "error": null
     },
     {
@@ -107,7 +107,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 231,
+      "durationMs": 226,
       "error": null
     },
     {
@@ -122,7 +122,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 238,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -152,7 +152,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 226,
       "error": null
     },
     {
@@ -167,7 +167,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 231,
+      "durationMs": 224,
       "error": null
     },
     {
@@ -182,7 +182,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 229,
       "error": null
     },
     {
@@ -197,7 +197,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 258,
+      "durationMs": 293,
       "error": null
     },
     {
@@ -212,7 +212,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 256,
       "error": null
     },
     {
@@ -227,7 +227,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 925,
+      "durationMs": 243,
       "error": null
     },
     {
@@ -242,7 +242,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 435,
+      "durationMs": 239,
       "error": null
     },
     {
@@ -257,7 +257,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 237,
+      "durationMs": 227,
       "error": null
     },
     {
@@ -272,7 +272,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 251,
+      "durationMs": 236,
       "error": null
     },
     {
@@ -287,7 +287,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 233,
       "error": null
     },
     {
@@ -302,7 +302,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -317,7 +317,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 243,
       "error": null
     },
     {
@@ -332,7 +332,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 233,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -347,7 +347,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -362,7 +362,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 227,
+      "durationMs": 931,
       "error": null
     },
     {
@@ -377,7 +377,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 234,
+      "durationMs": 282,
       "error": null
     },
     {
@@ -392,7 +392,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -407,7 +407,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 239,
+      "durationMs": 249,
       "error": null
     },
     {
@@ -422,7 +422,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 232,
+      "durationMs": 239,
       "error": null
     },
     {
@@ -437,7 +437,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 238,
+      "durationMs": 234,
       "error": null
     },
     {
@@ -452,7 +452,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 230,
       "error": null
     },
     {
@@ -467,7 +467,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 242,
+      "durationMs": 247,
       "error": null
     },
     {
@@ -482,7 +482,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 496,
       "error": null
     },
     {
@@ -497,7 +497,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 241,
+      "durationMs": 267,
       "error": null
     },
     {
@@ -512,7 +512,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 259,
+      "durationMs": 339,
       "error": null
     },
     {
@@ -527,7 +527,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 260,
+      "durationMs": 327,
       "error": null
     },
     {
@@ -542,7 +542,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 311,
       "error": null
     },
     {
@@ -557,7 +557,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 238,
+      "durationMs": 323,
       "error": null
     },
     {
@@ -572,7 +572,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 244,
+      "durationMs": 335,
       "error": null
     },
     {
@@ -587,7 +587,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 227,
+      "durationMs": 394,
       "error": null
     },
     {
@@ -602,7 +602,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 241,
+      "durationMs": 385,
       "error": null
     },
     {
@@ -617,7 +617,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 320,
       "error": null
     },
     {
@@ -632,7 +632,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 237,
+      "durationMs": 327,
       "error": null
     },
     {
@@ -647,7 +647,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 270,
+      "durationMs": 237,
       "error": null
     },
     {
@@ -662,7 +662,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 330,
       "error": null
     },
     {
@@ -677,7 +677,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 249,
+      "durationMs": 329,
       "error": null
     },
     {
@@ -692,7 +692,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 290,
+      "durationMs": 474,
       "error": null
     },
     {
@@ -707,7 +707,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 250,
+      "durationMs": 350,
       "error": null
     },
     {
@@ -722,7 +722,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 293,
+      "durationMs": 232,
       "error": null
     },
     {
@@ -737,7 +737,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 237,
+      "durationMs": 440,
       "error": null
     },
     {
@@ -752,7 +752,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 251,
+      "durationMs": 390,
       "error": null
     },
     {
@@ -767,7 +767,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 259,
+      "durationMs": 411,
       "error": null
     },
     {
@@ -782,7 +782,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 246,
+      "durationMs": 228,
       "error": null
     },
     {
@@ -797,7 +797,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 236,
+      "durationMs": 386,
       "error": null
     },
     {
@@ -812,7 +812,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 227,
+      "durationMs": 384,
       "error": null
     },
     {
@@ -827,7 +827,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 231,
+      "durationMs": 396,
       "error": null
     },
     {
@@ -842,7 +842,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 241,
+      "durationMs": 220,
       "error": null
     },
     {
@@ -857,7 +857,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 219,
       "error": null
     },
     {
@@ -872,7 +872,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 251,
+      "durationMs": 218,
       "error": null
     },
     {
@@ -887,7 +887,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 241,
+      "durationMs": 219,
       "error": null
     },
     {
@@ -902,7 +902,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 228,
+      "durationMs": 229,
       "error": null
     },
     {
@@ -917,7 +917,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 235,
+      "durationMs": 242,
       "error": null
     },
     {
@@ -932,7 +932,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 234,
+      "durationMs": 286,
       "error": null
     },
     {
@@ -947,7 +947,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 249,
       "error": null
     },
     {
@@ -962,7 +962,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 237,
+      "durationMs": 218,
       "error": null
     },
     {
@@ -977,7 +977,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 235,
+      "durationMs": 214,
       "error": null
     },
     {
@@ -992,7 +992,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 215,
       "error": null
     },
     {
@@ -1007,7 +1007,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 221,
+      "durationMs": 220,
       "error": null
     },
     {
@@ -1022,7 +1022,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 229,
+      "durationMs": 217,
       "error": null
     },
     {
@@ -1037,7 +1037,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 240,
+      "durationMs": 216,
       "error": null
     },
     {
@@ -1052,7 +1052,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 285,
       "error": null
     },
     {
@@ -1067,7 +1067,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 222,
+      "durationMs": 217,
       "error": null
     },
     {
@@ -1082,7 +1082,7 @@
       "pass": true,
       "onlySearch": [],
       "onlyMap": [],
-      "durationMs": 230,
+      "durationMs": 214,
       "error": null
     }
   ]
