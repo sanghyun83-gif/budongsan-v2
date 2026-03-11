@@ -828,3 +828,70 @@
 - 리포트 갱신:
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-10.json`
+
+## 2026-03-11 실행 로그 (광진 11215 갭 해소: 202506~202509)
+
+### A. 202506~202509 월별 적재 + 배치 normalize
+- 방식: 월 단위 적재 후 즉시 `db:normalize`
+- 월별 결과:
+  - 202506: fetched 356, raw inserted 0, norm inserted 21
+  - 202507: fetched 82, raw inserted 75, norm inserted 75
+  - 202508: fetched 106, raw inserted 98, norm inserted 99
+  - 202509: fetched 306, raw inserted 289, norm inserted 290
+
+## 2026-03-12 실행 로그 (geocode:maintain + parity 재확인)
+
+### A. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 6444
+  - exact: 5157
+  - approx: 1287
+  - pending: 1067
+  - failed: 34
+  - permanentFailed: 186
+  - exactRatio: 0.8003
+  - failRatio: 0.0053
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-12 실행 로그 (광진 11215 갭 해소: 202510~202602)
+
+### A. 202510~202602 월별 적재 + 배치 normalize
+- 방식: 월 단위 적재 후 즉시 `db:normalize`
+- 월별 결과:
+  - 202510: fetched 273, raw inserted 249, norm inserted 264
+  - 202511: fetched 38, raw inserted 36, norm inserted 37
+  - 202512: fetched 67, raw inserted 63, norm inserted 64
+  - 202601: fetched 67, raw inserted 2, norm inserted 12
+  - 202602: fetched 58, raw inserted 17, norm inserted 20
+
+## 2026-03-12 실행 로그 (geocode:maintain + parity 재실행)
+
+### A. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 6452
+  - exact: 5204
+  - approx: 1248
+  - pending: 1025
+  - failed: 37
+  - permanentFailed: 186
+  - exactRatio: 0.8066
+  - failRatio: 0.0057
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### B. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
