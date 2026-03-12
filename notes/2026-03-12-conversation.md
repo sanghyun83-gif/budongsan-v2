@@ -43,3 +43,26 @@
 - `qa:parity` PASS (72/72)
   - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
   - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
+
+## 5) Guro (`11530`) Gap Backfill (Complete)
+- Method: monthly ingest + `db:normalize` after each month
+- Executed:
+  - 202503: fetched 359, raw inserted 329, norm inserted 331
+  - 202504: fetched 280, raw inserted 260, norm inserted 265
+  - 202505: fetched 691, raw inserted 368, norm inserted 670
+  - 202506: fetched 495, raw inserted 454, norm inserted 464
+  - 202507: fetched 219, raw inserted 200, norm inserted 203
+  - 202508: fetched 228, raw inserted 218, norm inserted 220
+  - 202509: fetched 350, raw inserted 333, norm inserted 335
+  - 202510: fetched 347, raw inserted 339, norm inserted 339
+  - 202511: fetched 165, raw inserted 164, norm inserted 164
+  - 202512: fetched 283, raw inserted 277, norm inserted 278
+- Status: done (202503~202602, 12/12)
+
+## 6) 2026-03-12 geocode/parity (post-11530)
+- `geocode:maintain` strict PASS
+  - total 6727, exact 5424, approx 1303, pending 1091, failed 22, permanentFailed 190
+  - exactRatio 0.8063, failRatio 0.0033
+- `qa:parity` PASS (72/72)
+  - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
+  - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
