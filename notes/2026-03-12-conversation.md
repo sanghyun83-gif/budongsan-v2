@@ -3,56 +3,43 @@
 ## Context
 - Project: `budongsan-v2`
 - User goal:
-  - Gwangjin(11215) 12개월 커버 완료
-  - geocode/parity 재확인
-  - 문서/로그 갱신
+  - Build Gyeonggi coverage priority report identical in format to Seoul
+  - Improve region name mappings for accurate labeling
 
-## 1) Gwangjin (`11215`) 12개월 커버 완료
-- Method: monthly ingest + `db:normalize` after each month
-- Executed (additional months):
-  - 202510: fetched 273, raw inserted 249, norm inserted 264
-  - 202511: fetched 38, raw inserted 36, norm inserted 37
-  - 202512: fetched 67, raw inserted 63, norm inserted 64
-  - 202601: fetched 67, raw inserted 2, norm inserted 12
-  - 202602: fetched 58, raw inserted 17, norm inserted 20
-- Status: done (202503~202602, 12/12)
+## 1) Gyeonggi Coverage Priority Report
+- Script: `scripts/generate-coverage-priority.mjs`
+- Output: `docs/GYEONGGI_COVERAGE_PRIORITY_2026-03-12.md`
+- Range: 202503~202602
+- Result: Priority groups generated, completed list empty
 
-## 2) geocode/parity (re-run)
-- `geocode:maintain` strict PASS
-  - total 6452, exact 5204, approx 1248, pending 1025, failed 37, permanentFailed 186
-  - exactRatio 0.8066, failRatio 0.0057
-- `qa:parity` PASS (72/72)
-  - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.md`
-  - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-11.json`
+## 2) Region Name Mapping Overrides
+- Added Gyeonggi (41xxx) overrides for city/district names
+- Aliases included for split codes (e.g., 안양/부천/화성)
+- Report regenerated with corrected names
 
-## 3) Docs/Notes updated
-- `docs/SEOUL_COVERAGE_PRIORITY_2026-03-10.md`
-  - Restored UTF-8 after encoding break
-  - Moved 11215 + 11350 to 완료(12개월 커버)
-  - Removed duplicate update note
-- `docs/PHASE3_EXECUTION_LOG.md`
-  - Added 2026-03-12 execution logs (11215 completion + geocode/parity rerun)
-- `notes/2026-03-11-conversation.md` updated to include 12/12 completion and rerun metrics
+## 3) Next Mapping Candidates
+- Other provinces/city code families: 26xxx, 27xxx, 28xxx, 29xxx, 30xxx, 31xxx, 36xxx, 42xxx, 43xxx, 44xxx, 45xxx, 46xxx, 47xxx, 48xxx, 50xxx
+- Recommended next step: list codes with missing/placeholder `name_ko`, then add overrides only where needed
 
-## 4) Nowon (`11350`) Gap Backfill (Complete)
+## 4) Seongbuk (`11290`) Gap Backfill (Complete)
 - Method: monthly ingest + `db:normalize` after each month
 - Executed:
-  - 202503: fetched 601, raw inserted 0, norm inserted 45
-  - 202504: fetched 418, raw inserted 393, norm inserted 394
-  - 202505: fetched 570, raw inserted 540, norm inserted 542
-  - 202506: fetched 885, raw inserted 0, norm inserted 82
-  - 202507: fetched 342, raw inserted 321, norm inserted 324
-  - 202508: fetched 384, raw inserted 368, norm inserted 370
-  - 202509: fetched 591, raw inserted 572, norm inserted 573
-  - 202510: fetched 665, raw inserted 644, norm inserted 648
-  - 202511: fetched 235, raw inserted 234, norm inserted 234
-  - 202512: fetched 514, raw inserted 490, norm inserted 507
+  - 202503: fetched 455, raw inserted 410, norm inserted 415
+  - 202504: fetched 346, raw inserted 320, norm inserted 322
+  - 202505: fetched 475, raw inserted 424, norm inserted 434
+  - 202506: fetched 660, raw inserted 605, norm inserted 620
+  - 202507: fetched 232, raw inserted 209, norm inserted 213
+  - 202508: fetched 362, raw inserted 314, norm inserted 343
+  - 202509: fetched 545, raw inserted 517, norm inserted 522
+  - 202510: fetched 514, raw inserted 492, norm inserted 493
+  - 202511: fetched 207, raw inserted 198, norm inserted 198
+  - 202512: fetched 322, raw inserted 311, norm inserted 314
 - Status: done (202503~202602, 12/12)
 
-## 5) 2026-03-12 geocode/parity (post-11350)
+## 5) 2026-03-12 geocode/parity (post-11290)
 - `geocode:maintain` strict PASS
-  - total 6529, exact 5267, approx 1262, pending 1053, failed 27, permanentFailed 182
-  - exactRatio 0.8067, failRatio 0.0041
+  - total 6566, exact 5267, approx 1299, pending 1053, failed 27, permanentFailed 182
+  - exactRatio 0.8022, failRatio 0.0041
 - `qa:parity` PASS (72/72)
   - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
   - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
