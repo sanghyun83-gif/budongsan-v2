@@ -3,25 +3,11 @@
 ## Context
 - Project: `budongsan-v2`
 - User goal:
-  - Build Gyeonggi coverage priority report identical in format to Seoul
-  - Improve region name mappings for accurate labeling
+  - Continue Seoul gap backfills by priority (11290, 11530)
+  - Run geocode/parity after each backfill
+  - Keep logs and coverage docs up to date
 
-## 1) Gyeonggi Coverage Priority Report
-- Script: `scripts/generate-coverage-priority.mjs`
-- Output: `docs/GYEONGGI_COVERAGE_PRIORITY_2026-03-12.md`
-- Range: 202503~202602
-- Result: Priority groups generated, completed list empty
-
-## 2) Region Name Mapping Overrides
-- Added Gyeonggi (41xxx) overrides for city/district names
-- Aliases included for split codes (e.g., 안양/부천/화성)
-- Report regenerated with corrected names
-
-## 3) Next Mapping Candidates
-- Other provinces/city code families: 26xxx, 27xxx, 28xxx, 29xxx, 30xxx, 31xxx, 36xxx, 42xxx, 43xxx, 44xxx, 45xxx, 46xxx, 47xxx, 48xxx, 50xxx
-- Recommended next step: list codes with missing/placeholder `name_ko`, then add overrides only where needed
-
-## 4) Seongbuk (`11290`) Gap Backfill (Complete)
+## 1) Seongbuk (`11290`) Gap Backfill (Complete)
 - Method: monthly ingest + `db:normalize` after each month
 - Executed:
   - 202503: fetched 455, raw inserted 410, norm inserted 415
@@ -36,7 +22,7 @@
   - 202512: fetched 322, raw inserted 311, norm inserted 314
 - Status: done (202503~202602, 12/12)
 
-## 5) 2026-03-12 geocode/parity (post-11290)
+## 2) Post-11290 geocode/parity
 - `geocode:maintain` strict PASS
   - total 6566, exact 5267, approx 1299, pending 1053, failed 27, permanentFailed 182
   - exactRatio 0.8022, failRatio 0.0041
@@ -44,7 +30,7 @@
   - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
   - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
 
-## 5) Guro (`11530`) Gap Backfill (Complete)
+## 3) Guro (`11530`) Gap Backfill (Complete)
 - Method: monthly ingest + `db:normalize` after each month
 - Executed:
   - 202503: fetched 359, raw inserted 329, norm inserted 331
@@ -59,10 +45,49 @@
   - 202512: fetched 283, raw inserted 277, norm inserted 278
 - Status: done (202503~202602, 12/12)
 
-## 6) 2026-03-12 geocode/parity (post-11530)
+## 4) Post-11530 geocode/parity
 - `geocode:maintain` strict PASS
   - total 6727, exact 5424, approx 1303, pending 1091, failed 22, permanentFailed 190
   - exactRatio 0.8063, failRatio 0.0033
 - `qa:parity` PASS (72/72)
   - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
   - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
+
+## 5) Docs/Notes updated
+- `docs/SEOUL_COVERAGE_PRIORITY_2026-03-10.md`
+  - 11290, 11530 moved to 완료(12개월 커버)
+- `docs/PHASE3_EXECUTION_LOG.md`
+  - Added 2026-03-12 execution logs (11290 + 11530 backfill and post-gate/parity)
+- `notes/2026-03-12-conversation.md` updated
+
+## 6) Eunpyeong (`11380`) Gap Backfill (Complete)
+- Method: monthly ingest + `db:normalize` after each month
+- Executed:
+  - 202503: fetched 280, raw inserted 0, norm inserted 51
+  - 202504: fetched 198, raw inserted 192, norm inserted 192
+  - 202505: fetched 254, raw inserted 236, norm inserted 239
+  - 202506: fetched 418, raw inserted 389, norm inserted 395
+  - 202507: fetched 215, raw inserted 193, norm inserted 197
+  - 202508: fetched 218, raw inserted 200, norm inserted 203
+  - 202509: fetched 317, raw inserted 302, norm inserted 302
+  - 202510: fetched 381, raw inserted 363, norm inserted 368
+  - 202511: fetched 188, raw inserted 177, norm inserted 179
+  - 202512: fetched 219, raw inserted 211, norm inserted 212
+  - 202601: fetched 272, raw inserted 2, norm inserted 51
+  - 202602: fetched 288, raw inserted 86, norm inserted 130
+- Status: done (202503~202602, 12/12)
+
+## 7) Post-11380 geocode/parity
+- `geocode:maintain` strict PASS
+  - total 6908, exact 5554, approx 1354, pending 1138, failed 28, permanentFailed 188
+  - exactRatio 0.804, failRatio 0.0041
+- `qa:parity` PASS (72/72)
+  - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.md`
+  - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-12.json`
+  - note: report date is UTC (finishedAt 2026-03-12T16:45:49.075Z)
+
+## 8) Docs/Notes updated
+- `docs/SEOUL_COVERAGE_PRIORITY_2026-03-10.md`
+  - 11380 moved to 완료(12개월 커버)
+- `docs/PHASE3_EXECUTION_LOG.md`
+  - Added 2026-03-13 execution logs (11380 backfill + post-gate/parity)
