@@ -2,7 +2,7 @@
 
 - 시작일: 2026-03-01
 - 단계 목표: MVP-3 (정렬/검색 품질 + 성능/인덱스 + 운영 안정화 + 데이터 커버리지 확장)
-- 최종 갱신: 2026-03-13
+- 최종 갱신: 2026-03-14
 
 ## Step 2. 정렬/검색/UI
 
@@ -1120,6 +1120,126 @@
   - permanentFailed: 204
   - exactRatio: 0.8021
   - failRatio: 0.0053
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-13 실행 로그 (양천 11470 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 497, raw inserted 458, norm inserted 461
+- 202504: fetched 328, raw inserted 303, norm inserted 308
+- 202505: fetched 413, raw inserted 376, norm inserted 381
+- 202506: fetched 597, raw inserted 537, norm inserted 542
+- 202507: fetched 199, raw inserted 178, norm inserted 179
+- 202508: fetched 131, raw inserted 123, norm inserted 125
+- 202509: fetched 372, raw inserted 359, norm inserted 360
+- 202510: fetched 435, raw inserted 421, norm inserted 421
+- 202511: fetched 164, raw inserted 164, norm inserted 164
+- 202512: fetched 220, raw inserted 217, norm inserted 218
+- 202601: fetched 241, raw inserted 4, norm inserted 24
+- 202602: fetched 233, raw inserted 67, norm inserted 80
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 7410
+  - exact: 5970
+  - approx: 1440
+  - pending: 1184
+  - failed: 45
+  - permanentFailed: 211
+  - exactRatio: 0.8057
+  - failRatio: 0.0061
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-13 실행 로그 (서대문 11410 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 330, raw inserted 298, norm inserted 304
+- 202504: fetched 269, raw inserted 252, norm inserted 257
+- 202505: fetched 371, raw inserted 329, norm inserted 335
+- 202506: fetched 578, raw inserted 514, norm inserted 533
+- 202507: fetched 135, raw inserted 123, norm inserted 127
+- 202508: fetched 161, raw inserted 144, norm inserted 147
+- 202509: fetched 367, raw inserted 352, norm inserted 356
+- 202510: fetched 414, raw inserted 402, norm inserted 406
+- 202511: fetched 141, raw inserted 137, norm inserted 138
+- 202512: fetched 241, raw inserted 238, norm inserted 240
+- 202601: fetched 262, raw inserted 0, norm inserted 51
+- 202602: fetched 189, raw inserted 50, norm inserted 69
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 7504
+  - exact: 6037
+  - approx: 1467
+  - pending: 1203
+  - failed: 45
+  - permanentFailed: 219
+  - exactRatio: 0.8045
+  - failRatio: 0.006
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-14 실행 로그 (영등포 11560 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 565, raw inserted 525, norm inserted 530
+- 202504: fetched 389, raw inserted 358, norm inserted 364
+- 202505: fetched 532, raw inserted 492, norm inserted 497
+- 202506: fetched 769, raw inserted 692, norm inserted 697
+- 202507: fetched 257, raw inserted 231, norm inserted 232
+- 202508: fetched 245, raw inserted 234, norm inserted 236
+- 202509: fetched 500, raw inserted 488, norm inserted 489
+- 202510: fetched 458, raw inserted 449, norm inserted 449
+- 202511: fetched 109, raw inserted 109, norm inserted 109
+- 202512: fetched 237, raw inserted 235, norm inserted 235
+- 202601: fetched 264, raw inserted 8, norm inserted 34
+- 202602: fetched 275, raw inserted 116, norm inserted 130
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 7589
+  - exact: 6083
+  - approx: 1506
+  - pending: 1249
+  - failed: 49
+  - permanentFailed: 208
+  - exactRatio: 0.8016
+  - failRatio: 0.0065
 - 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
 
 ### C. qa:parity
