@@ -41,3 +41,36 @@
   - Added 2026-03-13 execution logs (11500 backfill + post-gate/parity)
 - `notes/2026-03-12-conversation.md`
   - Added 11500 backfill + post-gate/parity section
+
+## 4) Dongdaemun (`11230`) Gap Backfill (Complete)
+- Method: monthly ingest + `db:normalize` after each month
+- Executed:
+  - 202503: fetched 425, raw inserted 386, norm inserted 391
+  - 202504: fetched 347, raw inserted 295, norm inserted 325
+  - 202505: fetched 366, raw inserted 331, norm inserted 334
+  - 202506: fetched 574, raw inserted 517, norm inserted 520
+  - 202507: fetched 202, raw inserted 183, norm inserted 185
+  - 202508: fetched 234, raw inserted 218, norm inserted 220
+  - 202509: fetched 506, raw inserted 488, norm inserted 489
+  - 202510: fetched 546, raw inserted 521, norm inserted 524
+  - 202511: fetched 145, raw inserted 141, norm inserted 141
+  - 202512: fetched 285, raw inserted 259, norm inserted 280
+  - 202601: fetched 296, raw inserted 4, norm inserted 54
+  - 202602: fetched 203, raw inserted 55, norm inserted 78
+- Status: done (202503~202602, 12/12)
+
+## 5) Post-11230 geocode/parity
+- `geocode:maintain` strict PASS
+  - total 7231, exact 5800, approx 1431, pending 1189, failed 38, permanentFailed 204
+  - exactRatio 0.8021, failRatio 0.0053
+  - finishedAt 2026-03-13T11:58:47.347Z (UTC)
+- `qa:parity` PASS (72/72)
+  - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.md`
+  - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-13.json`
+  - note: report filename is UTC date
+
+## 6) Docs/Notes updated
+- `docs/SEOUL_COVERAGE_PRIORITY_2026-03-10.md`
+  - 11230 moved to 완료(12개월 커버)
+- `docs/PHASE3_EXECUTION_LOG.md`
+  - Added 2026-03-13 execution logs (11230 backfill + post-gate/parity)
