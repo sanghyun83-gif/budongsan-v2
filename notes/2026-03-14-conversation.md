@@ -278,3 +278,36 @@
   - 11140 moved to completed list (12-month coverage)
 - `docs/PHASE3_EXECUTION_LOG.md`
   - Added 2026-03-14 execution logs (11140 backfill + post-gate/parity)
+
+## 27) Jongno (`11110`) Gap Backfill (Complete)
+- Method: monthly ingest + `db:normalize` after each month
+- Executed:
+  - 202503: fetched 90, raw inserted 81, norm inserted 88
+  - 202504: fetched 43, raw inserted 41, norm inserted 41
+  - 202505: fetched 61, raw inserted 58, norm inserted 60
+  - 202506: fetched 107, raw inserted 99, norm inserted 103
+  - 202507: fetched 40, raw inserted 35, norm inserted 37
+  - 202508: fetched 42, raw inserted 41, norm inserted 42
+  - 202509: fetched 67, raw inserted 65, norm inserted 66
+  - 202510: fetched 88, raw inserted 85, norm inserted 86
+  - 202511: fetched 22, raw inserted 22, norm inserted 22
+  - 202512: fetched 43, raw inserted 43, norm inserted 43
+  - 202601: fetched 46, raw inserted 1, norm inserted 14
+  - 202602: fetched 44, raw inserted 15, norm inserted 25
+- Status: done (202503~202602, 12/12)
+
+## 28) Post-11110 geocode/parity
+- `geocode:maintain` strict PASS
+  - total 8146, exact 6563, approx 1583, pending 1290, failed 69, permanentFailed 224
+  - exactRatio 0.8057, failRatio 0.0085
+  - finishedAt 2026-03-14T13:10:42.390Z (UTC)
+- `qa:parity` PASS (72/72)
+  - report: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
+  - data: `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
+  - note: report filename is UTC date
+
+## 29) Docs/Notes updated
+- `docs/SEOUL_COVERAGE_PRIORITY_2026-03-10.md`
+  - 11110 moved to completed list (12-month coverage)
+- `docs/PHASE3_EXECUTION_LOG.md`
+  - Added 2026-03-14 execution logs (11110 backfill + post-gate/parity)
