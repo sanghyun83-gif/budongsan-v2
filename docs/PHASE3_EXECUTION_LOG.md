@@ -1369,3 +1369,163 @@
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
 - note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-14 실행 로그 (동작 11590 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 577, raw inserted 534, norm inserted 552
+- 202504: fetched 390, raw inserted 369, norm inserted 377
+- 202505: fetched 528, raw inserted 486, norm inserted 500
+- 202506: fetched 663, raw inserted 614, norm inserted 638
+- 202507: fetched 148, raw inserted 141, norm inserted 142
+- 202508: fetched 215, raw inserted 203, norm inserted 207
+- 202509: fetched 497, raw inserted 486, norm inserted 490
+- 202510: fetched 429, raw inserted 408, norm inserted 417
+- 202511: fetched 83, raw inserted 77, norm inserted 77
+- 202512: fetched 146, raw inserted 145, norm inserted 145
+- 202601: fetched 198, raw inserted 9, norm inserted 80
+- 202602: fetched 152, raw inserted 77, norm inserted 101
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 7943
+  - exact: 6382
+  - approx: 1561
+  - pending: 1275
+  - failed: 65
+  - permanentFailed: 221
+  - exactRatio: 0.8035
+  - failRatio: 0.0082
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-14 실행 로그 (강북 11305 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 104, raw inserted 100, norm inserted 103
+- 202504: fetched 102, raw inserted 91, norm inserted 95
+- 202505: fetched 128, raw inserted 113, norm inserted 113
+- 202506: fetched 179, raw inserted 163, norm inserted 167
+- 202507: fetched 87, raw inserted 80, norm inserted 83
+- 202508: fetched 94, raw inserted 90, norm inserted 91
+- 202509: fetched 120, raw inserted 116, norm inserted 117
+- 202510: fetched 123, raw inserted 120, norm inserted 120
+- 202511: fetched 73, raw inserted 71, norm inserted 72
+- 202512: fetched 117, raw inserted 115, norm inserted 116
+- 202601: fetched 125, raw inserted 4, norm inserted 18
+- 202602: fetched 145, raw inserted 42, norm inserted 67
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 7992
+  - exact: 6418
+  - approx: 1574
+  - pending: 1284
+  - failed: 66
+  - permanentFailed: 224
+  - exactRatio: 0.8031
+  - failRatio: 0.0083
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-14 실행 로그 (금천 11545 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 98, raw inserted 90, norm inserted 95
+- 202504: fetched 63, raw inserted 57, norm inserted 59
+- 202505: fetched 78, raw inserted 71, norm inserted 73
+- 202506: fetched 141, raw inserted 130, norm inserted 136
+- 202507: fetched 63, raw inserted 58, norm inserted 60
+- 202508: fetched 74, raw inserted 68, norm inserted 70
+- 202509: fetched 85, raw inserted 83, norm inserted 84
+- 202510: fetched 95, raw inserted 95, norm inserted 95
+- 202511: fetched 53, raw inserted 52, norm inserted 53
+- 202512: fetched 83, raw inserted 81, norm inserted 82
+- 202601: fetched 118, raw inserted 1, norm inserted 32
+- 202602: fetched 93, raw inserted 24, norm inserted 47
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 8042
+  - exact: 6468
+  - approx: 1574
+  - pending: 1284
+  - failed: 66
+  - permanentFailed: 224
+  - exactRatio: 0.8043
+  - failRatio: 0.0082
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-14 실행 로그 (중구 11140 갭 해소: 202503~202602)
+
+### A. 202503~202602 월별 적재 + 배치 normalize
+방식: 월 단위 적재 후 즉시 `db:normalize`
+
+월별 결과:
+- 202503: fetched 178, raw inserted 159, norm inserted 159
+- 202504: fetched 109, raw inserted 94, norm inserted 98
+- 202505: fetched 127, raw inserted 114, norm inserted 116
+- 202506: fetched 216, raw inserted 191, norm inserted 198
+- 202507: fetched 56, raw inserted 48, norm inserted 48
+- 202508: fetched 71, raw inserted 63, norm inserted 67
+- 202509: fetched 162, raw inserted 155, norm inserted 156
+- 202510: fetched 146, raw inserted 110, norm inserted 119
+- 202511: fetched 34, raw inserted 32, norm inserted 32
+- 202512: fetched 78, raw inserted 75, norm inserted 75
+- 202601: fetched 77, raw inserted 6, norm inserted 21
+- 202602: fetched 45, raw inserted 17, norm inserted 20
+
+### B. geocode:maintain
+- 명령: `npm run geocode:maintain`
+- 최종:
+  - total: 8100
+  - exact: 6515
+  - approx: 1585
+  - pending: 1289
+  - failed: 67
+  - permanentFailed: 224
+  - exactRatio: 0.8043
+  - failRatio: 0.0083
+- 결과: strict PASS (`exact >= 0.80`, `fail <= 0.05`)
+
+### C. qa:parity
+- 명령: `npm run qa:parity`
+- 결과: 전체 PASS (72/72)
+- 리포트 생성:
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
+  - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
+- note: 리포트 파일명은 UTC 기준 날짜로 저장됨
