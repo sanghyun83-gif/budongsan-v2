@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -32,7 +32,7 @@ const SORT_OPTIONS: Array<{ value: SortValue; label: string }> = [
   { value: "latest", label: "최신 거래순" },
   { value: "price_desc", label: "가격 높은순" },
   { value: "price_asc", label: "가격 낮은순" },
-  { value: "deal_count", label: "최근 3개월 거래량순" }
+  { value: "deal_count", label: "최근 3개월 거래순" }
 ];
 
 const DEFAULT_BOUNDS: Bounds = {
@@ -74,9 +74,9 @@ function formatManwon(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
   const uk = Math.floor(value / 10000);
   const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만`;
-  if (uk > 0) return `${uk}억`;
-  return `${value.toLocaleString()}만`;
+  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
+  if (uk > 0) return `${uk}억원`;
+  return `${value.toLocaleString()}만원`;
 }
 
 function formatKstDateTime(input: string | null): string {
@@ -258,7 +258,7 @@ export default function Explorer() {
 
   const quickRegion = (nextRegion: string) => {
     setRegion(nextRegion);
-    if (!q.trim()) setQ("래미안");
+    if (!q.trim()) setQ("아파트");
   };
 
   const resetFilters = () => {
@@ -277,13 +277,13 @@ export default function Explorer() {
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 14 }}>
       <header>
-        <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>budongsan-v2</h1>
-        <p style={{ color: "#475569" }}>검색-지도-리스트 동기화 기반 MVP</p>
+        <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>살집</h1>
+        <p style={{ color: "#475569" }}>검색·지도형 리스트/통계 기반 MVP</p>
       </header>
 
       <form onSubmit={runSearch} className="explorer-filter-grid">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어(예: 래미안)" className="ui-input" />
-        <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="지역코드(예:11680)" className="ui-input" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어(예: 힐스테이트)" className="ui-input" />
+        <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="지역코드(예: 11680)" className="ui-input" />
         <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소가(만원)" className="ui-input" inputMode="numeric" />
         <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대가(만원)" className="ui-input" inputMode="numeric" />
         <select value={sort} onChange={(e) => setSort(e.target.value as SortValue)} className="ui-input" aria-label="정렬">
@@ -344,3 +344,4 @@ export default function Explorer() {
     </main>
   );
 }
+

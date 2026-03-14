@@ -19,14 +19,35 @@ const geistMono = Geist_Mono({
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
-  title: "budongsan-v2",
-  description: "Korean real estate MVP",
+  metadataBase: new URL("https://saljip.kr"),
+  title: { default: "살집 | saljip.kr", template: "%s | 살집" },
+  description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+  robots: { index: true, follow: true },
+  alternates: { canonical: "https://saljip.kr" },
+  openGraph: {
+    title: "살집 | saljip.kr",
+    description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+    url: "https://saljip.kr",
+    type: "website",
+    siteName: "살집",
+    images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "살집" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "살집 | saljip.kr",
+    description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+    images: ["/og-default.png"]
+  },
+  icons: {
+    icon: ["/favicon-32x32.png", "/favicon-16x16.png", "/favicon.ico"],
+    apple: "/apple-touch-icon.png"
+  },
   verification: {
     google: "0LZoKgsWmaQ4yR9KcvPm5aykE5ZGH98tZdJ5C2bmyyg",
     other: {
-      "naver-site-verification": "329ee64d10952d1c7fa4ed3e7598725b9dc4aae3",
-    },
-  },
+      "naver-site-verification": "329ee64d10952d1c7fa4ed3e7598725b9dc4aae3"
+    }
+  }
 };
 
 export default function RootLayout({
@@ -62,4 +83,6 @@ export default function RootLayout({
     </html>
   );
 }
+
+
 

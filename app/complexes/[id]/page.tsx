@@ -1,3 +1,4 @@
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailActionBar from "@/components/DetailActionBar";
@@ -5,6 +6,26 @@ import { getComplexDealsById, getComplexSummaryById } from "@/lib/complexes";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const complexId = Number(id);
+  if (!Number.isInteger(complexId) || complexId <= 0) return {};
+
+  const complex = await getComplexSummaryById(complexId);
+  if (!complex) return {};
+
+  const title = `${complex.aptName} 실거래가·시세`;
+  const description = `${complex.regionName} ${complex.legalDong} ${complex.aptName} 아파트의 최근 실거래가, 평형별 가격, 거래 요약.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/complexes/${id}` },
+    openGraph: { title, description },
+    twitter: { title, description }
+  };
 }
 
 function formatManwon(value: number | null): string {
@@ -29,7 +50,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
   return (
     <main style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 16 }}>
       <Link href="/" style={{ color: "#0f766e", textDecoration: "underline", width: "fit-content" }}>
-        홈으로
+        뒤로
       </Link>
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
@@ -43,9 +64,9 @@ export default async function ComplexDetailPage({ params }: PageProps) {
       </section>
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>데이터 신뢰성</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>데이터 안내</h2>
         <p style={{ color: "#0f172a" }}>출처: 국토교통부 실거래가 공개데이터</p>
-        <p style={{ color: "#64748b", marginTop: 4 }}>기준일: API 조회 시점 기준</p>
+        <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준</p>
       </section>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
@@ -60,15 +81,15 @@ export default async function ComplexDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
-          <p style={{ color: "#64748b" }}>최근 3개월 거래량</p>
+          <p style={{ color: "#64748b" }}>최근 3개월 거래</p>
           <p style={{ fontSize: 24, fontWeight: 800 }}>{complex.dealCount3m}건</p>
         </div>
       </section>
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>최근 거래 히스토리</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>최근 거래 내역</h2>
         {deals.length === 0 ? (
-          <p style={{ color: "#64748b" }}>거래 데이터가 없습니다.</p>
+          <p style={{ color: "#64748b" }}>거래 내역이 없습니다.</p>
         ) : (
           <div style={{ display: "grid", gap: 8 }}>
             {deals.map((d) => (
@@ -98,3 +119,4 @@ export default async function ComplexDetailPage({ params }: PageProps) {
     </main>
   );
 }
+
