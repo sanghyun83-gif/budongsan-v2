@@ -26,6 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     openGraph: {
       title,
       description,
+      url: `https://saljip.kr/complexes/${id}`,
+      type: "website",
+      siteName: "살집",
       images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "살집" }]
     },
     twitter: {
