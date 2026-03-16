@@ -157,7 +157,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 - [x] `metadata.icons` PNG 참조 복구
 - [x] 로컬 빌드 통과 확인
 - [x] 로컬 자산 200 응답 확인 (`/og-default.png`, `/favicon-32x32.png`, `/apple-touch-icon.png`)
+- [x] Recrawl 요청 완료 (Google Search Console + Naver Search Advisor)
 - [ ] OG 미리보기 툴(카카오/페이스북/네이버) 확인
+  - 카카오: 홈(`/`) 캐시 초기화 후 디버그 확인 완료 (제목/설명/이미지 정상)
+  - 네이버: 홈(`/`) 공유 미리보기 확인 완료 (제목/설명/이미지 정상)
+  - 네이버: 대표 상세(`/complexes/452`) 공유 미리보기 확인 완료 (제목/설명 정상)
+  - 페이스북: 홈(`/`) Debug/Scrape 확인 완료 (제목/설명/이미지 정상)
 
 ## 실행 결과/검증
 - `npm run build` 성공 (TypeScript/페이지 수집/정적 생성 통과)
@@ -180,6 +185,43 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 - 웹마스터 도구 → URL 제출 (홈 + 대표 상세 1~3개)
 4. 확인 주기
 - 24~72시간 내 SERP 타이틀/스니펫 갱신 여부 확인
+
+## OG 미리보기 체크리스트 (카카오/네이버)
+아래는 **실제로 URL을 넣고 확인하는 절차**만 뽑은 체크리스트입니다.
+
+### 준비할 URL (복사해서 사용)
+- 홈: `https://saljip.kr/`
+- 대표 상세(예시): `https://saljip.kr/complexes/452`
+
+### 카카오 OG 캐시 초기화 + 미리보기 확인
+Kakao Developers FAQ 기준, **도구 > 초기화 도구 > OG(Open Graph) 캐시**에서 캐시 삭제를 진행합니다.
+
+1. 카카오 OG 캐시 초기화 도구 접속 (로그인 필요)
+```
+https://developers.kakao.com/tool/clear/og
+```
+2. 입력창에 확인할 URL 붙여넣기
+3. **캐시 초기화(삭제/확인) 버튼** 클릭
+4. 카카오톡에서 해당 URL을 공유했을 때
+   - 제목/설명/이미지가 `살집` 기준으로 바뀌는지 확인
+
+### 네이버 공유 미리보기 확인 (shareView)
+네이버 공유 UI는 아래 형식으로 URL을 생성해 확인합니다.
+
+1. 아래 URL 중 하나를 브라우저에 붙여넣기
+- 홈 미리보기
+```
+https://share.naver.com/web/shareView?url=https%3A%2F%2Fsaljip.kr%2F&title=%EC%82%B4%EC%A7%91%20%7C%20saljip.kr
+```
+- 대표 상세 미리보기
+```
+https://share.naver.com/web/shareView?url=https%3A%2F%2Fsaljip.kr%2Fcomplexes%2F452&title=%EC%82%B4%EC%A7%91%20%7C%20saljip.kr
+```
+2. 공유 카드에 노출되는 **제목/설명/이미지**가 최신값인지 확인
+
+## Recommendation
+- 카카오/네이버 공유 미리보기는 **선택 사항**이지만, 브랜드 전환을 **빠르게 노출**하고 싶다면 지금 요청하는 것을 권장.
+- 급하지 않다면 생략해도 되며, 이 경우 **자동 캐시 갱신까지 대기**해야 함.
 
 ## 추가 권장 작업 (동일한 ‘즉시’ 범주)
 - `sitemap.xml`과 `robots.txt` 기본 생성
