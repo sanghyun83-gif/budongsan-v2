@@ -2,7 +2,7 @@
 
 - 시작일: 2026-03-01
 - 단계 목표: MVP-3 (정렬/검색 품질 + 성능/인덱스 + 운영 안정화 + 데이터 커버리지 확장)
-- 최종 갱신: 2026-03-14
+- 최종 갱신: 2026-03-17
 
 ## Step 2. 정렬/검색/UI
 
@@ -1569,3 +1569,61 @@
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.md`
   - `docs/MAP_SEARCH_PARITY_REPORT_2026-03-14.json`
 - note: 리포트 파일명은 UTC 기준 날짜로 저장됨
+
+## 2026-03-16 실행 로그 (색인/SEO Day 1)
+
+### A. robots/sitemap 확인
+- `https://saljip.kr/robots.txt` 200 확인
+- `https://saljip.kr/sitemap.xml` 200 확인
+
+### B. Google Search Console 제출
+- 홈(`/`) 색인 생성 요청 완료
+- 대표 상세 5건 색인 생성 요청 완료:
+  - `/complexes/452`
+  - `/complexes/1`
+  - `/complexes/500`
+  - `/complexes/200`
+  - `/complexes/800`
+
+### C. Naver Search Advisor 제출
+- 홈(`/`) URL 제출 완료
+- 대표 상세 5건 URL 제출 완료 (동일 목록)
+
+### D. GA 실시간 이벤트 확인
+- `search_submit` 확인 (실시간 이벤트명: `search`)
+- `complex_detail_view` 확인 (실시간 이벤트명: `view_complex_detail`)
+- `cta_click` 확인
+
+## 2026-03-17 실행 로그 (메타 벤치마크 + OG 정합성 보강)
+
+### A. 메타 벤치마크 수집 (Playwright)
+- 실행: `node scripts/meta-benchmark.mjs`
+- 결과 파일: `notes/meta-benchmark.json`
+- 타깃: 직방/다방/호갱노노 + KB부동산/부동산114/아실
+- 요약:
+  - 직방: 403/차단 추정 → 메타 미수집
+  - 다방: canonical 있음, `og:url` 빈 값
+  - 호갱노노: canonical 없음, `og:type` 없음
+  - KB부동산: canonical 있음, `og:type` 없음
+  - 부동산114: `og:url` http, canonical 없음
+  - 아실: canonical http + deep path, `og:type` 없음
+
+### B. 살집 메타 규칙 반영 (모방 금지, 템플릿 유지)
+- 홈(`app/layout.tsx`)
+  - `openGraph.locale = "ko_KR"` 추가
+  - OG/Twitter 이미지 절대 URL로 고정 (`https://saljip.kr/og-default.png`)
+- 상세(`app/complexes/[id]/page.tsx`)
+  - canonical 절대 URL로 고정
+  - `openGraph.locale = "ko_KR"` 추가
+  - OG/Twitter 이미지 절대 URL로 고정
+
+### C. 메타 렌더링 확인 (샘플)
+- URL: `https://saljip.kr/complexes/452`
+- 확인 항목:
+  - `<link rel="canonical" href="https://saljip.kr/complexes/452">`
+  - `og:url`, `og:type`, `og:image` 절대 URL
+  - `twitter:image` 절대 URL
+
+### D. 로컬 SSL 경고 사전 대응
+- `.env.local`의 `DATABASE_URL`에서 `sslmode=require` → `sslmode=verify-full`로 변경
+- 목적: 향후 pg/pg-connection-string 메이저 버전에서 보안 의미 변경 대비

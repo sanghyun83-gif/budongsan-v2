@@ -30,13 +30,14 @@ export const metadata: Metadata = {
     url: "https://saljip.kr",
     type: "website",
     siteName: "살집",
-    images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "살집" }]
+    locale: "ko_KR",
+    images: [{ url: "https://saljip.kr/og-default.png", width: 1200, height: 630, alt: "살집" }]
   },
   twitter: {
     card: "summary_large_image",
     title: "살집 | saljip.kr",
     description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
-    images: ["/og-default.png"]
+    images: ["https://saljip.kr/og-default.png"]
   },
   icons: {
     icon: ["/favicon-32x32.png", "/favicon-16x16.png", "/favicon.ico"],
