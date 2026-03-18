@@ -1,0 +1,218 @@
+{
+  "executedAt": "2026-03-18T13:17:50.146Z",
+  "baseUrl": "http://localhost:3000",
+  "sortKeyword": "래미안",
+  "sortSmoke": [
+    {
+      "sort": "latest",
+      "orderPass": true,
+      "count": 20,
+      "totalCount": 171,
+      "first3": [
+        {
+          "aptName": "래미안안양메가트리아",
+          "amount": 45000,
+          "dealDate": "2026-03-01T15:00:00.000Z",
+          "dealCount3m": 29
+        },
+        {
+          "aptName": "삼성래미안",
+          "amount": 54900,
+          "dealDate": "2026-03-01T15:00:00.000Z",
+          "dealCount3m": 10
+        },
+        {
+          "aptName": "래미안영통마크원2단지",
+          "amount": 84000,
+          "dealDate": "2026-03-01T15:00:00.000Z",
+          "dealCount3m": 11
+        }
+      ]
+    },
+    {
+      "sort": "price_desc",
+      "orderPass": true,
+      "count": 20,
+      "totalCount": 171,
+      "first3": [
+        {
+          "aptName": "래미안원베일리",
+          "amount": 735000,
+          "dealDate": "2026-02-08T15:00:00.000Z",
+          "dealCount3m": 2
+        },
+        {
+          "aptName": "래미안원펜타스",
+          "amount": 710000,
+          "dealDate": "2025-11-27T15:00:00.000Z",
+          "dealCount3m": 0
+        },
+        {
+          "aptName": "래미안라클래시",
+          "amount": 630000,
+          "dealDate": "2025-11-04T15:00:00.000Z",
+          "dealCount3m": 0
+        }
+      ]
+    },
+    {
+      "sort": "price_asc",
+      "orderPass": true,
+      "count": 20,
+      "totalCount": 171,
+      "first3": [
+        {
+          "aptName": "우만동삼성래미안",
+          "amount": 32900,
+          "dealDate": "2026-02-11T15:00:00.000Z",
+          "dealCount3m": 1
+        },
+        {
+          "aptName": "수원권선삼성래미안",
+          "amount": 35700,
+          "dealDate": "2026-02-01T15:00:00.000Z",
+          "dealCount3m": 6
+        },
+        {
+          "aptName": "삼성래미안1차",
+          "amount": 35900,
+          "dealDate": "2026-02-20T15:00:00.000Z",
+          "dealCount3m": 14
+        }
+      ]
+    },
+    {
+      "sort": "deal_count",
+      "orderPass": true,
+      "count": 20,
+      "totalCount": 171,
+      "first3": [
+        {
+          "aptName": "래미안블레스티지",
+          "amount": 305000,
+          "dealDate": "2026-02-10T15:00:00.000Z",
+          "dealCount3m": 34
+        },
+        {
+          "aptName": "래미안안양메가트리아",
+          "amount": 45000,
+          "dealDate": "2026-03-01T15:00:00.000Z",
+          "dealCount3m": 29
+        },
+        {
+          "aptName": "래미안파크팰리스",
+          "amount": 234500,
+          "dealDate": "2026-01-22T15:00:00.000Z",
+          "dealCount3m": 28
+        }
+      ]
+    }
+  ],
+  "keywordSample": {
+    "rows": [
+      {
+        "keyword": "래미안",
+        "totalCount": 171,
+        "zeroResult": false
+      },
+      {
+        "keyword": "자이",
+        "totalCount": 168,
+        "zeroResult": false
+      },
+      {
+        "keyword": "힐스테이트",
+        "totalCount": 124,
+        "zeroResult": false
+      },
+      {
+        "keyword": "더샵",
+        "totalCount": 54,
+        "zeroResult": false
+      },
+      {
+        "keyword": "e편한세상",
+        "totalCount": 66,
+        "zeroResult": false
+      },
+      {
+        "keyword": "아이파크",
+        "totalCount": 118,
+        "zeroResult": false
+      },
+      {
+        "keyword": "푸르지오",
+        "totalCount": 141,
+        "zeroResult": false
+      },
+      {
+        "keyword": "롯데캐슬",
+        "totalCount": 93,
+        "zeroResult": false
+      },
+      {
+        "keyword": "센트럴",
+        "totalCount": 139,
+        "zeroResult": false
+      },
+      {
+        "keyword": "센트럴뷰",
+        "totalCount": 2,
+        "zeroResult": false
+      },
+      {
+        "keyword": "트리마제",
+        "totalCount": 1,
+        "zeroResult": false
+      },
+      {
+        "keyword": "리버센트",
+        "totalCount": 0,
+        "zeroResult": true
+      },
+      {
+        "keyword": "호반써밋",
+        "totalCount": 21,
+        "zeroResult": false
+      },
+      {
+        "keyword": "위브",
+        "totalCount": 77,
+        "zeroResult": false
+      },
+      {
+        "keyword": "예미지",
+        "totalCount": 4,
+        "zeroResult": false
+      },
+      {
+        "keyword": "디에이치",
+        "totalCount": 5,
+        "zeroResult": false
+      },
+      {
+        "keyword": "아크로",
+        "totalCount": 19,
+        "zeroResult": false
+      },
+      {
+        "keyword": "브라이튼",
+        "totalCount": 2,
+        "zeroResult": false
+      },
+      {
+        "keyword": "리첸시아",
+        "totalCount": 5,
+        "zeroResult": false
+      },
+      {
+        "keyword": "센트레빌",
+        "totalCount": 51,
+        "zeroResult": false
+      }
+    ],
+    "zeroCount": 1,
+    "sampleSize": 20,
+    "zeroRatio": 0.05
+  }
+}

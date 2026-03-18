@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
         c.apt_name,
         c.legal_dong,
         c.location_source,
+        c.updated_at AS complex_updated_at,
         r.code AS region_code,
         r.name_ko AS region_name,
         ST_Y(c.location::geometry) AS lat,
@@ -146,6 +147,17 @@ export async function GET(req: NextRequest) {
     ]);
 
     const totalCount = result.rows.length > 0 ? Number(result.rows[0].total_count ?? 0) : 0;
+    const latestTimestamp = result.rows.reduce((maxTs: number, row) => {
+      for (const candidate of [row.deal_date, row.complex_updated_at]) {
+        if (!candidate) continue;
+        const parsedTs = new Date(candidate).getTime();
+        if (Number.isFinite(parsedTs) && parsedTs > maxTs) {
+          maxTs = parsedTs;
+        }
+      }
+      return maxTs;
+    }, 0);
+    const updatedAt = latestTimestamp > 0 ? new Date(latestTimestamp).toISOString() : new Date().toISOString();
 
     return NextResponse.json({
       ok: true,
@@ -153,8 +165,8 @@ export async function GET(req: NextRequest) {
       appliedSort: input.sort,
       count: result.rows.length,
       totalCount,
-      sourceLabel: "MOLIT Public Real Transaction Data",
-      updatedAt: new Date().toISOString(),
+      sourceLabel: "국토교통부 실거래가 공개데이터",
+      updatedAt,
       items: result.rows
     });
   } catch (error) {

@@ -8,6 +8,17 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false
+});
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const complexId = Number(id);
@@ -50,6 +61,16 @@ function formatManwon(value: number | null): string {
   return `${value.toLocaleString()}만원`;
 }
 
+function formatKstDateTime(input: string): string {
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return KST_DATE_TIME_FORMATTER.format(parsed);
+}
+
+function formatLocationSourceLabel(source: "exact" | "approx"): string {
+  return source === "exact" ? "좌표 품질: 정확" : "좌표 품질: 근사";
+}
+
 export default async function ComplexDetailPage({ params }: PageProps) {
   const { id } = await params;
   const complexId = Number(id);
@@ -71,15 +92,20 @@ export default async function ComplexDetailPage({ params }: PageProps) {
         <p style={{ color: "#475569", marginTop: 4 }}>
           {complex.regionName} {complex.legalDong}
         </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+          <span className="ui-trust-chip">출처: 국토교통부 실거래가 공개데이터</span>
+          <span className="ui-trust-chip">최종 업데이트: {formatKstDateTime(complex.updatedAt)}</span>
+          <span className="ui-trust-chip">{formatLocationSourceLabel(complex.locationSource)}</span>
+        </div>
         <p style={{ color: "#64748b", marginTop: 4 }}>
-          최종 업데이트: {new Date(complex.updatedAt).toLocaleString("ko-KR")}
+          데이터 기준일: API 조회 시점 기준
         </p>
       </section>
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>데이터 안내</h2>
         <p style={{ color: "#0f172a" }}>출처: 국토교통부 실거래가 공개데이터</p>
-        <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준</p>
+        <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준 · {formatLocationSourceLabel(complex.locationSource)}</p>
       </section>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>

@@ -1684,3 +1684,38 @@
   - `failRatio=0.0091`
 - 명령: `npm run ops:location-gate`
 - 결과: `ok=true` (`exactRatio=0.8032`, `failRatio=0.0091`)
+
+## 2026-03-18 실행 로그 (허브 P0 우선순위 2→3→4→5→6→1 반영)
+
+### A. 코드 반영
+- `components/Explorer.tsx`
+  - 결과 요약 영역을 API 응답 기반으로 연결
+    - `sourceLabel`, `updatedAt`, `totalCount` 사용
+  - 결과 카드 필드 매핑 고정
+    - 단지명 fallback, 지역 fallback, 최근 거래가/최근 거래일 라벨 명시
+  - 검색 바 UX 보강
+    - 검색/지역/가격 placeholder 개선
+    - 지역코드 숫자 5자리 제한
+    - 가격 입력 blur 시 숫자 sanitize
+    - Enter/버튼/지도 재검색 안내 문구 추가
+- `app/api/search/route.ts`
+  - `sourceLabel`을 국문 표기로 통일 (`국토교통부 실거래가 공개데이터`)
+  - `updatedAt`을 조회 결과(`deal_date`, `complex_updated_at`) 기준으로 계산
+- `app/complexes/[id]/page.tsx`
+  - 상세 상단 신뢰 라벨(출처/최종 업데이트/좌표 품질) 칩 노출
+  - 데이터 안내 영역에 좌표 품질 정보 추가
+- `app/globals.css`
+  - 신뢰 칩 스타일(`.ui-trust-chip`) 추가
+- `scripts/hub-p0-smoke.mjs`
+  - 정렬 4종 + 샘플 키워드 20개 자동 스모크 스크립트 추가
+- `package.json`
+  - `qa:hub-p0-smoke` 스크립트 추가
+
+### B. 스모크 실행
+- 명령: `npm run qa:hub-p0-smoke`
+- 산출물:
+  - `notes/hub-p0-smoke-2026-03-18.json`
+  - `notes/hub-p0-smoke-2026-03-18.md`
+- 결과:
+  - 정렬 스모크: `latest=PASS`, `price_desc=PASS`, `price_asc=PASS`, `deal_count=PASS`
+  - 키워드 샘플(20개): `0건 1개`, `0건 비율 5.0%`

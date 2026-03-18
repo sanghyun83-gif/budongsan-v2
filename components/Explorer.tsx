@@ -13,6 +13,7 @@ type SearchItem = {
   legal_dong: string;
   region_code: string;
   region_name: string;
+  location_source?: "exact" | "approx";
   lat: number | null;
   lng: number | null;
   deal_amount_manwon: number | null;
@@ -43,6 +44,7 @@ const DEFAULT_BOUNDS: Bounds = {
 };
 
 const MAX_DB_INT = 2_147_483_647;
+const DEFAULT_SOURCE_LABEL = "국토교통부 실거래가 공개데이터";
 
 const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -70,6 +72,11 @@ function sanitizePriceInput(raw: string): string {
   return String(Math.min(MAX_DB_INT, Math.max(0, Math.trunc(parsed))));
 }
 
+function normalizeRegionCode(raw: string): string {
+  const digits = raw.replace(/[^0-9]/g, "").slice(0, 5);
+  return /^\d{5}$/.test(digits) ? digits : "";
+}
+
 function formatManwon(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
   const uk = Math.floor(value / 10000);
@@ -93,6 +100,18 @@ function formatKstDate(input: string | null): string {
   return KST_DATE_FORMATTER.format(parsed);
 }
 
+function formatRegionLabel(item: SearchItem): string {
+  const regionParts = [item.region_name?.trim(), item.legal_dong?.trim()].filter(Boolean);
+  if (regionParts.length > 0) return regionParts.join(" ");
+  return item.region_code?.trim() ? `지역코드 ${item.region_code}` : "지역 정보 없음";
+}
+
+function formatCardTitle(item: SearchItem): string {
+  const aptName = item.apt_name?.trim();
+  if (aptName) return aptName;
+  return `단지 #${item.id}`;
+}
+
 export default function Explorer() {
   const router = useRouter();
 
@@ -108,6 +127,8 @@ export default function Explorer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [sourceLabel, setSourceLabel] = useState(DEFAULT_SOURCE_LABEL);
   const [initialized, setInitialized] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -141,7 +162,7 @@ export default function Explorer() {
   const queryState = useMemo(
     () => ({
       q: q.trim(),
-      region: region.trim(),
+      region: normalizeRegionCode(region),
       minPrice: minPrice.trim(),
       maxPrice: maxPrice.trim(),
       sort,
@@ -175,6 +196,8 @@ export default function Explorer() {
       setSearchItems([]);
       setMapItems([]);
       setUpdatedAt(null);
+      setTotalCount(0);
+      setSourceLabel(DEFAULT_SOURCE_LABEL);
       syncUrl();
       return;
     }
@@ -217,6 +240,8 @@ export default function Explorer() {
       setSearchItems(searchJson.items ?? []);
       setMapItems(mapJson.complexes ?? []);
       setUpdatedAt(searchJson.updatedAt ?? null);
+      setTotalCount(typeof searchJson.totalCount === "number" ? searchJson.totalCount : (searchJson.items ?? []).length);
+      setSourceLabel(typeof searchJson.sourceLabel === "string" && searchJson.sourceLabel.trim() ? searchJson.sourceLabel : DEFAULT_SOURCE_LABEL);
       trackEvent("search", {
         search_term: queryState.q,
         region_code: queryState.region || undefined,
@@ -229,6 +254,7 @@ export default function Explorer() {
       setError(e instanceof Error ? e.message : "Unknown error");
       setSearchItems([]);
       setMapItems([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -271,6 +297,8 @@ export default function Explorer() {
     setSearchItems([]);
     setMapItems([]);
     setUpdatedAt(null);
+    setTotalCount(0);
+    setSourceLabel(DEFAULT_SOURCE_LABEL);
     router.replace("/", { scroll: false });
   };
 
@@ -282,10 +310,39 @@ export default function Explorer() {
       </header>
 
       <form onSubmit={runSearch} className="explorer-filter-grid">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어(예: 힐스테이트)" className="ui-input" />
-        <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="지역코드(예: 11680)" className="ui-input" />
-        <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소가(만원)" className="ui-input" inputMode="numeric" />
-        <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대가(만원)" className="ui-input" inputMode="numeric" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="단지/브랜드/동 검색 (예: 래미안, 대치동)"
+          className="ui-input"
+          aria-label="검색어"
+        />
+        <input
+          value={region}
+          onChange={(e) => setRegion(e.target.value.replace(/[^0-9]/g, "").slice(0, 5))}
+          placeholder="지역코드 5자리 (예: 11680)"
+          className="ui-input"
+          inputMode="numeric"
+          aria-label="지역코드"
+        />
+        <input
+          value={minPrice}
+          onChange={(e) => setMinPrice(e.target.value)}
+          onBlur={(e) => setMinPrice(sanitizePriceInput(e.target.value))}
+          placeholder="최소가(만원, 숫자만)"
+          className="ui-input"
+          inputMode="numeric"
+          aria-label="최소가"
+        />
+        <input
+          value={maxPrice}
+          onChange={(e) => setMaxPrice(e.target.value)}
+          onBlur={(e) => setMaxPrice(sanitizePriceInput(e.target.value))}
+          placeholder="최대가(만원, 숫자만)"
+          className="ui-input"
+          inputMode="numeric"
+          aria-label="최대가"
+        />
         <select value={sort} onChange={(e) => setSort(e.target.value as SortValue)} className="ui-input" aria-label="정렬">
           {SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -298,15 +355,17 @@ export default function Explorer() {
         </button>
       </form>
 
+      <p style={{ color: "#64748b", fontSize: 13 }}>Enter 또는 검색 버튼으로 조회됩니다. 지도 이동 시 현재 바운드로 자동 재검색됩니다.</p>
+
       <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontSize: 14 }}>
         <input type="checkbox" checked={exactOnly} onChange={(e) => setExactOnly(e.target.checked)} />
         정확 좌표만 보기 (exact)
       </label>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#475569", fontSize: 14 }}>
-        <span>출처: 국토교통부 실거래가 공개데이터</span>
+        <span>출처: {sourceLabel}</span>
         <span>최종 업데이트: {formatKstDateTime(updatedAt)}</span>
-        <span>리스트 {searchItems.length}건 · 지도 {mapItems.length}건</span>
+        <span>리스트 {totalCount}건 · 지도 {mapItems.length}건</span>
       </div>
 
       {error && <div className="ui-error">오류: {error}</div>}
@@ -330,12 +389,14 @@ export default function Explorer() {
           {searchItems.map((item) => (
             <Link key={item.id} href={`/complexes/${item.id}`} className="ui-card-link">
               <div>
-                <p style={{ fontWeight: 700 }}>{item.apt_name}</p>
-                <p style={{ color: "#64748b", fontSize: 14 }}>{item.region_name} {item.legal_dong}</p>
+                <p style={{ fontWeight: 700 }}>{formatCardTitle(item)}</p>
+                <p style={{ color: "#64748b", fontSize: 14 }}>{formatRegionLabel(item)}</p>
+                {item.location_source === "approx" && <span className="ui-approx-badge">근사 위치</span>}
               </div>
               <div style={{ textAlign: "right" }}>
+                <p style={{ color: "#64748b", fontSize: 13 }}>최근 거래가</p>
                 <p style={{ fontWeight: 700 }}>{formatManwon(item.deal_amount_manwon)}</p>
-                <p style={{ color: "#64748b", fontSize: 13 }}>{formatKstDate(item.deal_date)}</p>
+                <p style={{ color: "#64748b", fontSize: 13 }}>최근 거래일 {formatKstDate(item.deal_date)}</p>
               </div>
             </Link>
           ))}

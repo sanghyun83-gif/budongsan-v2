@@ -83,6 +83,18 @@ body {
   color: inherit;
 }
 
+.ui-trust-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
 @media (max-width: 560px) {
   .ui-card-link {
     flex-direction: column;
