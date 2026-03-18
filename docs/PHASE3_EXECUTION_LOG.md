@@ -2,7 +2,7 @@
 
 - 시작일: 2026-03-01
 - 단계 목표: MVP-3 (정렬/검색 품질 + 성능/인덱스 + 운영 안정화 + 데이터 커버리지 확장)
-- 최종 갱신: 2026-03-17
+- 최종 갱신: 2026-03-19
 
 ## Step 2. 정렬/검색/UI
 
@@ -1719,3 +1719,90 @@
 - 결과:
   - 정렬 스모크: `latest=PASS`, `price_desc=PASS`, `price_asc=PASS`, `deal_count=PASS`
   - 키워드 샘플(20개): `0건 1개`, `0건 비율 5.0%`
+
+## 2026-03-19 실행 로그 (허브 P1: 상단 KPI 반영)
+
+### A. 코드 반영
+- `app/api/hub/kpi/route.ts` 신규 추가
+  - KPI 응답 추가: `totalComplexes`, `deals3m`, `updatedAt`, `sourceLabel`
+  - `DATABASE_URL` 미설정 시 fallback 응답 처리
+- `components/Explorer.tsx`
+  - 허브 상단 KPI 카드 2종 추가
+    - 전체 단지 수
+    - 최근 3개월 거래 수
+  - KPI 기준 문구(출처/업데이트 시각) 표시
+- `app/globals.css`
+  - KPI 레이아웃/카드 스타일 추가
+    - `.hub-kpi-grid`, `.hub-kpi-card`, `.hub-kpi-label`, `.hub-kpi-value`
+- `app/api/search/route.ts`
+  - `sourceLabel` 깨짐 문자열 복구
+  - 값 고정: `국토교통부 실거래가 공개데이터`
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+
+### C. 확인 포인트
+- 홈(`/`) 상단에 KPI 2개 카드 노출
+- KPI 기준 문구(출처/업데이트 시각) 노출
+- 검색 요약 출처 문구 정상 한글 표시
+
+## 2026-03-19 실행 로그 (허브 P1: 트렌드 모듈 + 레이아웃 재배치)
+
+### A. 코드 반영
+- `app/api/hub/trends/route.ts` 신규 추가
+  - 트렌드 응답 추가:
+    - `topComplexes` (최근 3개월 거래량 기준 상위 단지)
+    - `risingKeywords` (최근 30일 vs 직전 30일 키워드 변화)
+  - `DATABASE_URL` 미설정 시 fallback 응답 처리
+- `components/Explorer.tsx`
+  - 트렌드 모듈 UI 추가:
+    - 인기 단지 리스트 (단지 상세 링크 포함)
+    - 급상승 키워드 리스트 (증감 건수/증감률 표시)
+  - 홈 레이아웃 재배치:
+    - `제목 + 검색/필터`
+    - `지도 + 검색결과`
+    - `KPI + 트렌드`
+- `app/globals.css`
+  - 트렌드 레이아웃/카드 스타일 추가
+    - `.hub-trend-grid`, `.hub-trend-card`, `.hub-trend-list`, `.hub-trend-item`, `.hub-keyword-growth`
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+
+### C. 확인 포인트
+- 홈(`/`)에서 검색/지도 섹션이 KPI/트렌드보다 먼저 노출
+- 인기 단지 섹션에서 카드 클릭 시 상세(`/complexes/[id]`) 이동
+- 급상승 키워드 섹션에서 최근/직전 건수와 변화량 표시
+
+## 2026-03-19 실행 로그 (허브 P1: 최근 거래 스냅샷 모듈 반영)
+
+### A. 코드 반영
+- `app/api/hub/snapshot/route.ts` 신규 추가
+  - 스냅샷 응답 추가:
+    - `recentDeals` (최신 거래 N건, 기본 10건)
+    - `summary` (최근 30일 vs 직전 30일 거래수/중위 거래가 변화)
+  - `limit` 파라미터 지원 (`1~20`)
+  - `DATABASE_URL` 미설정 시 fallback 응답 처리
+- `components/Explorer.tsx`
+  - 스냅샷 모듈 UI 추가:
+    - `최근 가격 변화 요약 (30일 비교)` 카드
+    - `최근 거래 10건` 리스트 (단지 상세 링크 포함)
+  - 홈 섹션 순서 유지:
+    - `제목 + 검색/필터`
+    - `지도 + 검색결과`
+    - `KPI + 트렌드`
+    - `최근 거래 스냅샷`
+- `app/globals.css`
+  - 스냅샷 스타일 추가:
+    - `.hub-snapshot-grid`, `.hub-snapshot-card`, `.hub-snapshot-summary-grid`, `.hub-snapshot-summary-item`, `.hub-snapshot-diff`
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+
+### C. 확인 포인트
+- 홈(`/`) 하단에 스냅샷 모듈 2개 카드 노출
+- 최근 거래 리스트에서 단지 클릭 시 상세 이동
+- 30일 비교 요약(거래수/중위 거래가 증감) 노출

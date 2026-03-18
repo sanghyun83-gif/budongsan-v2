@@ -27,6 +27,54 @@ type Bounds = {
   neLng: number;
 };
 
+type HubKpi = {
+  totalComplexes: number;
+  deals3m: number;
+  updatedAt: string | null;
+  sourceLabel: string;
+};
+
+type TrendComplex = {
+  id: string;
+  aptName: string;
+  legalDong: string;
+  regionName: string;
+  dealCount3m: number;
+  latestDealDate: string | null;
+  latestDealAmountManwon: number | null;
+};
+
+type RisingKeyword = {
+  keyword: string;
+  recentCount: number;
+  previousCount: number;
+  growthCount: number;
+  growthRatePct: number | null;
+};
+
+type SnapshotDeal = {
+  id: number;
+  complexId: number;
+  aptName: string;
+  legalDong: string;
+  regionCode: string;
+  regionName: string;
+  dealDate: string | null;
+  dealAmountManwon: number | null;
+  areaM2: number | null;
+  floor: number | null;
+};
+
+type SnapshotSummary = {
+  recentCount: number;
+  previousCount: number;
+  countDiff: number;
+  recentMedianPriceManwon: number | null;
+  previousMedianPriceManwon: number | null;
+  medianPriceDiffManwon: number | null;
+  medianPriceDiffPct: number | null;
+};
+
 type SortValue = "latest" | "price_desc" | "price_asc" | "deal_count";
 
 const SORT_OPTIONS: Array<{ value: SortValue; label: string }> = [
@@ -112,6 +160,28 @@ function formatCardTitle(item: SearchItem): string {
   return `단지 #${item.id}`;
 }
 
+function formatGrowthLabel(item: RisingKeyword): string {
+  const countLabel = `${item.growthCount >= 0 ? "+" : ""}${item.growthCount.toLocaleString()}건`;
+  if (item.growthRatePct === null) return countLabel;
+  const rateLabel = `${item.growthRatePct >= 0 ? "+" : ""}${item.growthRatePct.toFixed(1)}%`;
+  return `${countLabel} (${rateLabel})`;
+}
+
+function formatSignedCount(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toLocaleString()}건`;
+}
+
+function formatSignedPrice(value: number | null): string {
+  if (value === null) return "-";
+  const absText = formatManwon(Math.abs(value));
+  return `${value >= 0 ? "+" : "-"}${absText}`;
+}
+
+function formatSignedPercent(value: number | null): string {
+  if (value === null) return "-";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
 export default function Explorer() {
   const router = useRouter();
 
@@ -129,6 +199,29 @@ export default function Explorer() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [sourceLabel, setSourceLabel] = useState(DEFAULT_SOURCE_LABEL);
+  const [hubKpi, setHubKpi] = useState<HubKpi>({
+    totalComplexes: 0,
+    deals3m: 0,
+    updatedAt: null,
+    sourceLabel: DEFAULT_SOURCE_LABEL
+  });
+  const [topComplexes, setTopComplexes] = useState<TrendComplex[]>([]);
+  const [risingKeywords, setRisingKeywords] = useState<RisingKeyword[]>([]);
+  const [snapshotDeals, setSnapshotDeals] = useState<SnapshotDeal[]>([]);
+  const [snapshotSummary, setSnapshotSummary] = useState<SnapshotSummary>({
+    recentCount: 0,
+    previousCount: 0,
+    countDiff: 0,
+    recentMedianPriceManwon: null,
+    previousMedianPriceManwon: null,
+    medianPriceDiffManwon: null,
+    medianPriceDiffPct: null
+  });
+  const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<string | null>(null);
+  const [snapshotSourceLabel, setSnapshotSourceLabel] = useState(DEFAULT_SOURCE_LABEL);
+  const [kpiLoading, setKpiLoading] = useState(false);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -157,6 +250,125 @@ export default function Explorer() {
     }
 
     setInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchKpi = async () => {
+      setKpiLoading(true);
+      try {
+        const res = await fetch("/api/hub/kpi", { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error ?? "Hub KPI API failed");
+        }
+        if (cancelled) return;
+        setHubKpi({
+          totalComplexes: typeof json.kpi?.totalComplexes === "number" ? json.kpi.totalComplexes : 0,
+          deals3m: typeof json.kpi?.deals3m === "number" ? json.kpi.deals3m : 0,
+          updatedAt: json.updatedAt ?? null,
+          sourceLabel:
+            typeof json.sourceLabel === "string" && json.sourceLabel.trim() ? json.sourceLabel : DEFAULT_SOURCE_LABEL
+        });
+      } catch {
+        if (cancelled) return;
+        setHubKpi((prev) => ({
+          ...prev,
+          sourceLabel: DEFAULT_SOURCE_LABEL
+        }));
+      } finally {
+        if (!cancelled) setKpiLoading(false);
+      }
+    };
+
+    void fetchKpi();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSnapshot = async () => {
+      setSnapshotLoading(true);
+      try {
+        const res = await fetch("/api/hub/snapshot?limit=10", { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error ?? "Snapshot API failed");
+        }
+        if (cancelled) return;
+
+        setSnapshotDeals(Array.isArray(json.snapshot?.recentDeals) ? json.snapshot.recentDeals : []);
+        setSnapshotSummary({
+          recentCount: Number(json.snapshot?.summary?.recentCount ?? 0),
+          previousCount: Number(json.snapshot?.summary?.previousCount ?? 0),
+          countDiff: Number(json.snapshot?.summary?.countDiff ?? 0),
+          recentMedianPriceManwon:
+            json.snapshot?.summary?.recentMedianPriceManwon === null
+              ? null
+              : Number(json.snapshot?.summary?.recentMedianPriceManwon),
+          previousMedianPriceManwon:
+            json.snapshot?.summary?.previousMedianPriceManwon === null
+              ? null
+              : Number(json.snapshot?.summary?.previousMedianPriceManwon),
+          medianPriceDiffManwon:
+            json.snapshot?.summary?.medianPriceDiffManwon === null
+              ? null
+              : Number(json.snapshot?.summary?.medianPriceDiffManwon),
+          medianPriceDiffPct:
+            json.snapshot?.summary?.medianPriceDiffPct === null
+              ? null
+              : Number(json.snapshot?.summary?.medianPriceDiffPct)
+        });
+        setSnapshotUpdatedAt(json.updatedAt ?? null);
+        setSnapshotSourceLabel(
+          typeof json.sourceLabel === "string" && json.sourceLabel.trim() ? json.sourceLabel : DEFAULT_SOURCE_LABEL
+        );
+      } catch {
+        if (cancelled) return;
+        setSnapshotDeals([]);
+      } finally {
+        if (!cancelled) setSnapshotLoading(false);
+      }
+    };
+
+    void fetchSnapshot();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchTrends = async () => {
+      setTrendLoading(true);
+      try {
+        const res = await fetch("/api/hub/trends", { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error ?? "Trend API failed");
+        }
+        if (cancelled) return;
+
+        setTopComplexes(Array.isArray(json.trends?.topComplexes) ? json.trends.topComplexes : []);
+        setRisingKeywords(Array.isArray(json.trends?.risingKeywords) ? json.trends.risingKeywords : []);
+      } catch {
+        if (cancelled) return;
+        setTopComplexes([]);
+        setRisingKeywords([]);
+      } finally {
+        if (!cancelled) setTrendLoading(false);
+      }
+    };
+
+    void fetchTrends();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const queryState = useMemo(
@@ -401,6 +613,132 @@ export default function Explorer() {
             </Link>
           ))}
         </aside>
+      </section>
+
+      <section className="hub-kpi-grid" aria-label="허브 KPI">
+        <article className="hub-kpi-card">
+          <p className="hub-kpi-label">전체 단지 수</p>
+          <p className="hub-kpi-value">{kpiLoading ? "-" : `${hubKpi.totalComplexes.toLocaleString()}건`}</p>
+        </article>
+        <article className="hub-kpi-card">
+          <p className="hub-kpi-label">최근 3개월 거래 수</p>
+          <p className="hub-kpi-value">{kpiLoading ? "-" : `${hubKpi.deals3m.toLocaleString()}건`}</p>
+        </article>
+      </section>
+
+      <p style={{ color: "#64748b", fontSize: 13 }}>
+        KPI 기준: {hubKpi.sourceLabel} · 업데이트 {formatKstDateTime(hubKpi.updatedAt)}
+      </p>
+
+      <section className="hub-trend-grid" aria-label="허브 트렌드">
+        <article className="hub-trend-card">
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>인기 단지 (최근 3개월 거래)</h2>
+          {trendLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+          {!trendLoading && topComplexes.length === 0 && (
+            <p style={{ color: "#64748b", fontSize: 14 }}>표시할 단지가 없습니다.</p>
+          )}
+          {!trendLoading && topComplexes.length > 0 && (
+            <div className="hub-trend-list">
+              {topComplexes.map((item) => (
+                <Link key={item.id} href={`/complexes/${item.id}`} className="hub-trend-item">
+                  <div>
+                    <p style={{ fontWeight: 700 }}>{item.aptName}</p>
+                    <p className="hub-trend-meta">
+                      {item.regionName} {item.legalDong}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontWeight: 700 }}>{item.dealCount3m.toLocaleString()}건</p>
+                    <p className="hub-trend-meta">{formatManwon(item.latestDealAmountManwon)}</p>
+                    <p className="hub-trend-meta">{formatKstDate(item.latestDealDate)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="hub-trend-card">
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>급상승 키워드 (최근 30일)</h2>
+          {trendLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+          {!trendLoading && risingKeywords.length === 0 && (
+            <p style={{ color: "#64748b", fontSize: 14 }}>표시할 키워드가 없습니다.</p>
+          )}
+          {!trendLoading && risingKeywords.length > 0 && (
+            <ul className="hub-trend-list">
+              {risingKeywords.map((item) => (
+                <li key={item.keyword} className="hub-trend-item">
+                  <div>
+                    <p style={{ fontWeight: 700 }}>{item.keyword}</p>
+                    <p className="hub-trend-meta">
+                      최근 {item.recentCount.toLocaleString()}건 · 직전 {item.previousCount.toLocaleString()}건
+                    </p>
+                  </div>
+                  <span className="hub-keyword-growth">{formatGrowthLabel(item)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      </section>
+
+      <section className="hub-snapshot-grid" aria-label="최근 거래 스냅샷">
+        <article className="hub-snapshot-card">
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>최근 가격 변화 요약 (30일 비교)</h2>
+          {snapshotLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+          {!snapshotLoading && (
+            <div className="hub-snapshot-summary-grid">
+              <div className="hub-snapshot-summary-item">
+                <p className="hub-trend-meta">최근 30일 거래</p>
+                <p style={{ fontWeight: 800, fontSize: 20 }}>{snapshotSummary.recentCount.toLocaleString()}건</p>
+                <p className="hub-trend-meta">직전 30일 {snapshotSummary.previousCount.toLocaleString()}건</p>
+                <p className="hub-snapshot-diff">{formatSignedCount(snapshotSummary.countDiff)}</p>
+              </div>
+              <div className="hub-snapshot-summary-item">
+                <p className="hub-trend-meta">최근 30일 중위 거래가</p>
+                <p style={{ fontWeight: 800, fontSize: 20 }}>{formatManwon(snapshotSummary.recentMedianPriceManwon)}</p>
+                <p className="hub-trend-meta">직전 30일 {formatManwon(snapshotSummary.previousMedianPriceManwon)}</p>
+                <p className="hub-snapshot-diff">
+                  {formatSignedPrice(snapshotSummary.medianPriceDiffManwon)} ·{" "}
+                  {formatSignedPercent(snapshotSummary.medianPriceDiffPct)}
+                </p>
+              </div>
+            </div>
+          )}
+          <p style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>
+            기준: {snapshotSourceLabel} · 업데이트 {formatKstDateTime(snapshotUpdatedAt)}
+          </p>
+        </article>
+
+        <article className="hub-snapshot-card">
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>최근 거래 10건</h2>
+          {snapshotLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+          {!snapshotLoading && snapshotDeals.length === 0 && (
+            <p style={{ color: "#64748b", fontSize: 14 }}>표시할 거래 데이터가 없습니다.</p>
+          )}
+          {!snapshotLoading && snapshotDeals.length > 0 && (
+            <div className="hub-trend-list">
+              {snapshotDeals.map((deal) => (
+                <Link key={deal.id} href={`/complexes/${deal.complexId}`} className="hub-trend-item">
+                  <div>
+                    <p style={{ fontWeight: 700 }}>{deal.aptName}</p>
+                    <p className="hub-trend-meta">
+                      {deal.regionName} {deal.legalDong || `지역 ${deal.regionCode}`}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontWeight: 700 }}>{formatManwon(deal.dealAmountManwon)}</p>
+                    <p className="hub-trend-meta">{formatKstDate(deal.dealDate)}</p>
+                    <p className="hub-trend-meta">
+                      {deal.areaM2 ? `${deal.areaM2.toLocaleString()}m²` : "-"}
+                      {deal.floor ? ` · ${deal.floor}층` : ""}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </article>
       </section>
     </main>
   );

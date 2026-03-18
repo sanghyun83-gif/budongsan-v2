@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
@@ -178,3 +178,4 @@ export async function GET(req: NextRequest) {
     recordApiMetric("GET /api/search", performance.now() - started, status);
   }
 }
+
