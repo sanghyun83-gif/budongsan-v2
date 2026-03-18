@@ -1627,3 +1627,60 @@
 ### D. 로컬 SSL 경고 사전 대응
 - `.env.local`의 `DATABASE_URL`에서 `sslmode=require` → `sslmode=verify-full`로 변경
 - 목적: 향후 pg/pg-connection-string 메이저 버전에서 보안 의미 변경 대비
+
+## 2026-03-18 실행 로그 (허브 P0 로컬 스모크: API 수준)
+
+### A. 로컬 서버 확인
+- `http://localhost:3000` 200 확인
+
+### B. 검색 API 정렬 4종 확인
+- `GET /api/search?q=래미안&sort=latest` OK
+- `GET /api/search?q=래미안&sort=price_desc` OK
+- `GET /api/search?q=래미안&sort=price_asc` OK
+- `GET /api/search?q=래미안&sort=deal_count` OK
+
+### C. 지도 API 확인
+- `GET /api/map/complexes?...&q=래미안&sort=deal_count` OK
+
+### D. 비고
+- UI 상호작용(지도 pan/zoom, 카드 클릭, 0건 UI)은 수동 확인 필요
+
+## 2026-03-18 실행 로그 (허브 P0 로컬 스모크: UI 포함)
+
+### A. UI 수동 확인 (로컬)
+- 지도 pan/zoom 후 URL bbox 갱신 확인
+- 카드 클릭 → 상세 이동 → 뒤로 복귀 확인
+- 0건 상태 UI 메시지/버튼 노출 확인
+
+### B. 비고
+- 확인은 로컬 브라우저 화면 기준
+
+## 2026-03-18 실행 로그 (하남 41450 갭 해소: 202503~202602)
+
+### A. 하남 202503~202504 보강 ingest
+- 명령:
+  - `npm run ingest:molit -- --regions=41450 --startYmd=202503 --endYmd=202504 --maxPerRegion=3000`
+- 결과:
+  - `region=41450 month=202504 fetched=252`
+  - `region=41450 month=202503 fetched=502`
+  - 합계: `fetched=754`, `normalized=754`
+  - done: `totalDealsSeen=754`, `totalRawInserted=698`, `totalNormInserted=717`
+
+### B. normalize 실행
+- 명령: `npm run db:normalize`
+- 결과: `Applied SQL: sql/003_normalize_from_raw.sql`
+
+### C. geocode maintain + gate 확인
+- 명령: `npm run geocode:maintain`
+- strict 결과: `ok=true`
+- 지표:
+  - `total=8258`
+  - `exact=6633`
+  - `approx=1625`
+  - `pending=1326`
+  - `failed=75`
+  - `permanentFailed=224`
+  - `exactRatio=0.8032`
+  - `failRatio=0.0091`
+- 명령: `npm run ops:location-gate`
+- 결과: `ok=true` (`exactRatio=0.8032`, `failRatio=0.0091`)
