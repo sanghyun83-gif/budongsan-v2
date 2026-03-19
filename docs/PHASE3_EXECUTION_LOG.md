@@ -1806,3 +1806,47 @@
 - 홈(`/`) 하단에 스냅샷 모듈 2개 카드 노출
 - 최근 거래 리스트에서 단지 클릭 시 상세 이동
 - 30일 비교 요약(거래수/중위 거래가 증감) 노출
+
+## 2026-03-19 실행 로그 (허브 P1: 위치 품질 필드 표준화)
+
+### A. 코드 반영
+- API 응답 품질 필드 표준화:
+  - `locationQuality` (`exact | approx`)를 공통 필드로 확정
+  - 하위호환용 legacy 필드(`location_source`, `locationSource`)는 임시 유지
+- `app/api/search/route.ts`
+  - DB row 직접 반환 제거, 응답 매핑 고정
+  - `items[*].locationQuality` 추가
+- `app/api/map/complexes/route.ts`
+  - `complexes[*].locationQuality` 추가 (DB/fallback 모두)
+- `lib/complexes.ts`
+  - 상세 summary 모델에 `locationQuality` 추가
+- `app/complexes/[id]/page.tsx`
+  - 상세 신뢰 라벨이 `locationQuality` 기준으로 동작하도록 정리
+- `components/Explorer.tsx`
+  - 리스트 카드 `근사 위치` 배지를 `locationQuality` 우선으로 표시
+- `components/HomeMap.tsx`
+  - 지도 핀 툴팁에 좌표 품질 배지(정확/근사) 표시
+  - 마커 title에도 좌표 품질 라벨 포함
+- `scripts/hub-p0-smoke.mjs`
+  - `exact_only` 일관성 점검 항목 추가
+    - exact 검색 결과가 `locationQuality=exact`만 반환되는지 검증
+    - exact 지도 결과가 `locationQuality=exact`만 반환되는지 검증
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+- 명령: `npm run qa:hub-p0-smoke`
+- 결과: 로컬 PC에서 PASS (2026-03-19)
+  - 산출물:
+    - `notes/hub-p0-smoke-2026-03-19.json`
+    - `notes/hub-p0-smoke-2026-03-19.md`
+  - 요약:
+    - Sort: `latest/price_desc/price_asc/deal_count` 모두 PASS
+    - Keyword sample: `zero 1/20 (5.0%)`
+    - `exact_only` 일관성: search/map 모두 PASS
+
+### C. 확인 포인트
+- `/api/search` 응답: `items[*].locationQuality` 존재
+- `/api/map/complexes` 응답: `complexes[*].locationQuality` 존재
+- 상세 페이지: 좌표 품질 칩(정확/근사) 정상 노출
+- 지도 마커 툴팁: 좌표 품질 배지(정확/근사) 노출 확인 완료 (로컬 수동 확인)

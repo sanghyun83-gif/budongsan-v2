@@ -1,8 +1,9 @@
 import { writeFileSync } from "node:fs";
 
-const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+const baseUrl = (process.env.BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
 const runDate = new Date().toISOString();
 const runDateShort = runDate.slice(0, 10);
+
 const commonParams = new URLSearchParams({
   page: "1",
   size: "20",
@@ -18,24 +19,34 @@ const sampleKeywords = [
   "래미안",
   "자이",
   "힐스테이트",
-  "더샵",
+  "푸르지오",
   "e편한세상",
   "아이파크",
-  "푸르지오",
   "롯데캐슬",
+  "더샵",
+  "리버",
   "센트럴",
-  "센트럴뷰",
-  "트리마제",
-  "리버센트",
-  "호반써밋",
-  "위브",
-  "예미지",
-  "디에이치",
-  "아크로",
-  "브라이튼",
-  "리첸시아",
-  "센트레빌"
+  "현대",
+  "우성",
+  "동원",
+  "한양",
+  "삼성",
+  "대우",
+  "서초",
+  "잠실",
+  "분당",
+  "판교"
 ];
+
+function buildApiUrl(path, params) {
+  const url = new URL(path, `${baseUrl}/`);
+  url.search = params.toString();
+  return url.toString();
+}
+
+function pickLocationQuality(item) {
+  return item.locationQuality ?? item.locationSource ?? item.location_source ?? "approx";
+}
 
 function isNonIncreasing(values) {
   const filtered = values.filter((value) => Number.isFinite(value));
@@ -59,17 +70,37 @@ function parseDateMs(value) {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-async function fetchSearch(q, sort) {
+async function fetchSearch(q, sort, exactOnly = false) {
   const params = new URLSearchParams(commonParams);
   params.set("q", q);
   params.set("sort", sort);
-  const res = await fetch(`${baseUrl}/api/search?${params.toString()}`, { cache: "no-store" });
+  params.set("exact_only", exactOnly ? "true" : "false");
+  const res = await fetch(buildApiUrl("/api/search", params), { cache: "no-store" });
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status} while requesting /api/search (${q}, ${sort})`);
+    throw new Error(`HTTP ${res.status} while requesting /api/search (${q}, ${sort}, exact=${exactOnly})`);
   }
   const json = await res.json();
   if (!json.ok) {
-    throw new Error(`API error while requesting /api/search (${q}, ${sort}): ${json.error || "unknown"}`);
+    throw new Error(`API error while requesting /api/search (${q}, ${sort}, exact=${exactOnly}): ${json.error || "unknown"}`);
+  }
+  return json;
+}
+
+async function fetchMap(q, sort, exactOnly = false) {
+  const params = new URLSearchParams(commonParams);
+  params.set("q", q);
+  params.set("sort", sort);
+  params.set("limit", "120");
+  params.set("exact_only", exactOnly ? "true" : "false");
+  const res = await fetch(buildApiUrl("/api/map/complexes", params), { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} while requesting /api/map/complexes (${q}, ${sort}, exact=${exactOnly})`);
+  }
+  const json = await res.json();
+  if (!json.ok) {
+    throw new Error(
+      `API error while requesting /api/map/complexes (${q}, ${sort}, exact=${exactOnly}): ${json.error || "unknown"}`
+    );
   }
   return json;
 }
@@ -78,7 +109,7 @@ async function runSortSmoke() {
   const rows = [];
 
   for (const sort of sortKeys) {
-    const json = await fetchSearch(sortKeyword, sort);
+    const json = await fetchSearch(sortKeyword, sort, false);
     const items = Array.isArray(json.items) ? json.items : [];
     const priceValues = items.map((item) => Number(item.deal_amount_manwon));
     const dealCountValues = items.map((item) => Number(item.deal_count_3m));
@@ -99,7 +130,8 @@ async function runSortSmoke() {
         aptName: item.apt_name ?? "",
         amount: item.deal_amount_manwon ?? null,
         dealDate: item.deal_date ?? null,
-        dealCount3m: item.deal_count_3m ?? null
+        dealCount3m: item.deal_count_3m ?? null,
+        locationQuality: pickLocationQuality(item)
       }))
     });
   }
@@ -110,7 +142,7 @@ async function runSortSmoke() {
 async function runKeywordSample() {
   const rows = [];
   for (const keyword of sampleKeywords) {
-    const json = await fetchSearch(keyword, "latest");
+    const json = await fetchSearch(keyword, "latest", false);
     const totalCount = Number(json.totalCount ?? json.count ?? 0);
     rows.push({
       keyword,
@@ -130,15 +162,45 @@ async function runKeywordSample() {
   };
 }
 
+async function runExactOnlyConsistency() {
+  const keyword = sortKeyword;
+  const sort = "latest";
+
+  const searchDefault = await fetchSearch(keyword, sort, false);
+  const searchExact = await fetchSearch(keyword, sort, true);
+  const mapDefault = await fetchMap(keyword, sort, false);
+  const mapExact = await fetchMap(keyword, sort, true);
+
+  const defaultSearchItems = Array.isArray(searchDefault.items) ? searchDefault.items : [];
+  const exactSearchItems = Array.isArray(searchExact.items) ? searchExact.items : [];
+  const defaultMapItems = Array.isArray(mapDefault.complexes) ? mapDefault.complexes : [];
+  const exactMapItems = Array.isArray(mapExact.complexes) ? mapExact.complexes : [];
+
+  const exactSearchOnlyPass = exactSearchItems.every((item) => pickLocationQuality(item) === "exact");
+  const exactMapOnlyPass = exactMapItems.every((item) => pickLocationQuality(item) === "exact");
+
+  return {
+    keyword,
+    defaultSearchCount: defaultSearchItems.length,
+    exactSearchCount: exactSearchItems.length,
+    defaultMapCount: defaultMapItems.length,
+    exactMapCount: exactMapItems.length,
+    exactSearchOnlyPass,
+    exactMapOnlyPass
+  };
+}
+
 async function main() {
   const sortSmoke = await runSortSmoke();
   const keywordSample = await runKeywordSample();
+  const exactOnlyConsistency = await runExactOnlyConsistency();
 
   const report = {
     executedAt: runDate,
     baseUrl,
     sortKeyword,
     sortSmoke,
+    exactOnlyConsistency,
     keywordSample
   };
 
@@ -157,6 +219,15 @@ async function main() {
     "| --- | --- | ---: | ---: |",
     ...sortSmoke.map((row) => `| ${row.sort} | ${row.orderPass ? "PASS" : "FAIL"} | ${row.count} | ${row.totalCount} |`),
     "",
+    "## exact_only Consistency",
+    `- keyword: \`${exactOnlyConsistency.keyword}\``,
+    `- defaultSearchCount: ${exactOnlyConsistency.defaultSearchCount}`,
+    `- exactSearchCount: ${exactOnlyConsistency.exactSearchCount}`,
+    `- defaultMapCount: ${exactOnlyConsistency.defaultMapCount}`,
+    `- exactMapCount: ${exactOnlyConsistency.exactMapCount}`,
+    `- exactSearchOnlyPass: ${exactOnlyConsistency.exactSearchOnlyPass ? "PASS" : "FAIL"}`,
+    `- exactMapOnlyPass: ${exactOnlyConsistency.exactMapOnlyPass ? "PASS" : "FAIL"}`,
+    "",
     "## Keyword Sample (20)",
     `- sampleSize: ${keywordSample.sampleSize}`,
     `- zeroCount: ${keywordSample.zeroCount}`,
@@ -171,8 +242,9 @@ async function main() {
   console.log(`Saved: ${outputJsonPath}`);
   console.log(`Saved: ${outputMdPath}`);
   console.log(`Sort summary: ${sortSmoke.map((r) => `${r.sort}=${r.orderPass ? "PASS" : "FAIL"}`).join(", ")}`);
+  console.log(`Keyword summary: zero ${keywordSample.zeroCount}/${keywordSample.sampleSize} (${(keywordSample.zeroRatio * 100).toFixed(1)}%)`);
   console.log(
-    `Keyword summary: zero ${keywordSample.zeroCount}/${keywordSample.sampleSize} (${(keywordSample.zeroRatio * 100).toFixed(1)}%)`
+    `Exact-only summary: search=${exactOnlyConsistency.exactSearchOnlyPass ? "PASS" : "FAIL"}, map=${exactOnlyConsistency.exactMapOnlyPass ? "PASS" : "FAIL"}`
   );
 }
 
