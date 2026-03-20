@@ -141,15 +141,17 @@ async function fetchFromDatabase(
   );
 
   return result.rows.map((r) => ({
-    id: Number(r.id),
-    aptId: `complex-${r.id}`,
-    aptName: r.apt_name,
-    legalDong: r.legal_dong ?? "",
-    dealAmount: Number(r.deal_amount_manwon ?? 0),
-    lat: Number(r.lat),
-    lng: Number(r.lng),
-    locationSource: r.location_source === "exact" ? "exact" : "approx"
-  })) as MapComplex[];
+      id: Number(r.id),
+      aptId: `complex-${r.id}`,
+      aptName: r.apt_name,
+      legalDong: r.legal_dong ?? "",
+      dealAmount: Number(r.deal_amount_manwon ?? 0),
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      locationQuality: r.location_source === "exact" ? "exact" : "approx",
+      // Legacy field for backward compatibility.
+      locationSource: r.location_source === "exact" ? "exact" : "approx"
+    })) as MapComplex[];
 }
 
 async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng: number, limit: number) {
@@ -168,6 +170,8 @@ async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng:
           dealAmount: d.dealAmount,
           lat,
           lng,
+          locationQuality: "approx",
+          // Legacy field for backward compatibility.
           locationSource: "approx"
         };
         return out;
