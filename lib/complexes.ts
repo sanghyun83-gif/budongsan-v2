@@ -1,6 +1,5 @@
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
-
-export type LocationSource = "exact" | "approx";
+import type { LocationQuality } from "@/lib/types";
 
 export interface ComplexSummary {
   id: number;
@@ -12,7 +11,9 @@ export interface ComplexSummary {
   addressJibun: string | null;
   lat: number | null;
   lng: number | null;
-  locationSource: LocationSource;
+  locationQuality: LocationQuality;
+  // Legacy field kept for compatibility during migration.
+  locationSource?: LocationQuality;
   buildYear: number | null;
   totalUnits: number | null;
   latestDealAmount: number | null;
@@ -89,6 +90,8 @@ export async function getComplexSummaryById(id: number): Promise<ComplexSummary 
     addressJibun: row.address_jibun ?? null,
     lat: row.lat === null ? null : Number(row.lat),
     lng: row.lng === null ? null : Number(row.lng),
+    locationQuality: row.location_source === "exact" ? "exact" : "approx",
+    // Legacy field kept for compatibility during migration.
     locationSource: row.location_source === "exact" ? "exact" : "approx",
     buildYear: row.build_year === null ? null : Number(row.build_year),
     totalUnits: row.total_units === null ? null : Number(row.total_units),

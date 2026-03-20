@@ -19,7 +19,9 @@ export interface Sigungu {
   nameKo: string;
 }
 
-export type LocationSource = "exact" | "approx";
+export type LocationQuality = "exact" | "approx";
+// Legacy alias kept for compatibility during migration.
+export type LocationSource = LocationQuality;
 
 export interface MapComplex {
   id: number;
@@ -29,5 +31,6 @@ export interface MapComplex {
   dealAmount: number;
   lat: number;
   lng: number;
-  locationSource: LocationSource;
+  locationQuality: LocationQuality;
+  locationSource?: LocationSource;
 }
