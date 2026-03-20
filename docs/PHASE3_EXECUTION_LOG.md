@@ -1896,3 +1896,96 @@
 
 ### D. 후속
 - 배포 전 법무/운영 검토 후 연락처/담당자 placeholder 실제 값으로 치환
+
+## 2026-03-20 실행 로그 (P2 조건 기반 추천 MVP)
+
+### A. API 추가
+- 신규 라우트: `GET /api/hub/recommendations`
+  - 파일: `app/api/hub/recommendations/route.ts`
+- 입력 파라미터 반영:
+  - `q`, `region`, `min_price`, `max_price`, `exact_only`, `sw_lat/sw_lng/ne_lat/ne_lng`(bbox), `limit`
+- 출력 스펙:
+  - 추천 리스트 + 이유 라벨(`동일 지역`, `가격대 유사`, `최근 거래 활발`)
+  - `sourceLabel`, `updatedAt`, `count`, `query`
+- 동작 기준:
+  - 검색 조건 기반 후보 추출
+  - 최근 3개월 거래량/최신 거래일/조건 일치 기반 스코어링
+
+### B. 홈 UI 반영
+- 파일: `components/Explorer.tsx`
+- 위치: 최근 거래 스냅샷 섹션 아래(허브 하단)
+- 노출 항목:
+  - 단지명/지역/최근 거래가/최근 거래일/최근 3개월 거래건수
+  - 추천 이유 태그 + 좌표 품질 배지(근사 위치)
+- 연동:
+  - 기존 검색 조건(`q`, `region`, `price`, `exact_only`, `bbox`)과 동기화하여 추천 조회
+
+### C. 스타일 반영
+- 파일: `app/globals.css`
+- 추가 클래스:
+  - `.hub-recommendation-card`
+  - `.hub-recommendation-tags`
+  - `.hub-recommendation-tag`
+
+### D. 문서 반영
+- `docs/SALJIP_HUB_WEEK1_SCOPE_2026-03-16.md`
+  - P2 진행 체크리스트 추가 및 구현 항목 체크
+### E. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+- 명령: `npm run qa:hub-p0-smoke`
+- 결과: PASS
+  - 산출물:
+    - `notes/hub-p0-smoke-2026-03-20.json`
+    - `notes/hub-p0-smoke-2026-03-20.md`
+  - 요약:
+    - Sort: `latest/price_desc/price_asc/deal_count` PASS
+    - Keyword zero: `0/20 (0.0%)`
+    - Exact-only: `search=PASS`, `map=PASS`
+- 추천 API 수동 체크:
+  - URL: `/api/hub/recommendations?q=래미안&region=11680&min_price=50000&max_price=250000&exact_only=true&bbox...&limit=5`
+  - 결과: `200 OK`, `count=4`, 이유 라벨(`동일 지역`, `가격대 유사`) 확인
+
+## 2026-03-20 실행 로그 (P2 금융 연계 + 생활 인프라 1차)
+
+### A. 코드 반영
+- 금융 연계 API/유틸/화면 반영
+  - 신규: `lib/finance/estimate.ts`
+  - 신규: `app/api/hub/finance-estimate/route.ts`
+  - 신규: `components/FinanceEstimateCard.tsx`
+  - 반영: `app/complexes/[id]/page.tsx` (상세 상단에 금융 계산 카드)
+  - 반영: `components/Explorer.tsx` (추천 카드에 월 상환액 요약 + CTA)
+- 생활 인프라 API/화면 반영
+  - 신규: `app/api/hub/livability/route.ts`
+  - 신규: `components/LivabilitySummaryCard.tsx`
+  - 반영: `components/Explorer.tsx` (스냅샷 아래 생활 인프라 요약)
+  - 반영: `app/complexes/[id]/page.tsx` (상세 상단 요약 아래 생활 인프라 블록)
+- 이벤트 로깅 반영
+  - 금융: `finance_estimate_view`, `finance_estimate_change`, `finance_cta_click`
+  - 생활 인프라: `livability_view`, `livability_expand_click`
+- 스타일 반영
+  - `app/globals.css`에 금융/생활 인프라 카드 스타일 추가
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+- 명령: `BASE_URL=http://localhost:3000 npm run qa:hub-p0-smoke`
+- 결과: PASS (2026-03-20)
+  - 산출물:
+    - `notes/hub-p0-smoke-2026-03-20.json`
+    - `notes/hub-p0-smoke-2026-03-20.md`
+  - 요약:
+    - Sort: `latest/price_desc/price_asc/deal_count` PASS
+    - Keyword zero: `0/20 (0.0%)`
+    - Exact-only: `search=PASS`, `map=PASS`
+
+### C. 수동 API 점검
+- 금융 API:
+  - `/api/hub/finance-estimate?price_manwon=95000&ltv=60&annual_rate=4&years=30`
+  - 결과: `200 OK`, `estimate.monthlyPaymentManwon` 정상 반환
+- 생활 인프라 API:
+  - `/api/hub/livability?complex_id=452`
+  - 결과: `200 OK`, `traffic/education/convenience` 라벨/근거값 반환
+- exact_only 일관성:
+  - `/api/search?...&exact_only=true` → approx `0건`
+  - `/api/map/complexes?...&exact_only=true` → approx `0건`

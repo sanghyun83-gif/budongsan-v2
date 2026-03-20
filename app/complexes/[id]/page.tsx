@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailActionBar from "@/components/DetailActionBar";
+import FinanceEstimateCard from "@/components/FinanceEstimateCard";
+import LivabilitySummaryCard from "@/components/LivabilitySummaryCard";
 import { getComplexDealsById, getComplexSummaryById } from "@/lib/complexes";
 
 interface PageProps {
@@ -78,6 +80,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
 
   const complex = await getComplexSummaryById(complexId);
   if (!complex) notFound();
+  const locationQuality = complex.locationQuality ?? complex.locationSource ?? "approx";
 
   const deals = await getComplexDealsById(complexId, 1, 20);
 
@@ -95,7 +98,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
           <span className="ui-trust-chip">출처: 국토교통부 실거래가 공개데이터</span>
           <span className="ui-trust-chip">최종 업데이트: {formatKstDateTime(complex.updatedAt)}</span>
-          <span className="ui-trust-chip">{formatLocationSourceLabel(complex.locationSource)}</span>
+          <span className="ui-trust-chip">{formatLocationSourceLabel(locationQuality)}</span>
         </div>
         <p style={{ color: "#64748b", marginTop: 4 }}>
           데이터 기준일: API 조회 시점 기준
@@ -105,7 +108,7 @@ export default async function ComplexDetailPage({ params }: PageProps) {
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>데이터 안내</h2>
         <p style={{ color: "#0f172a" }}>출처: 국토교통부 실거래가 공개데이터</p>
-        <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준 · {formatLocationSourceLabel(complex.locationSource)}</p>
+        <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준 · {formatLocationSourceLabel(locationQuality)}</p>
       </section>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
@@ -124,6 +127,14 @@ export default async function ComplexDetailPage({ params }: PageProps) {
           <p style={{ fontSize: 24, fontWeight: 800 }}>{complex.dealCount3m}건</p>
         </div>
       </section>
+
+      <FinanceEstimateCard complexId={complexId} aptName={complex.aptName} defaultPriceManwon={complex.latestDealAmount} />
+
+      <LivabilitySummaryCard
+        complexId={complexId}
+        title="생활 인프라 요약"
+        subtitle={`${complex.regionName} ${complex.legalDong} 기준`}
+      />
 
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>최근 거래 내역</h2>

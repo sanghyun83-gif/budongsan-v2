@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HomeMap from "@/components/HomeMap";
+import LivabilitySummaryCard from "@/components/LivabilitySummaryCard";
 import { trackEvent } from "@/lib/analytics";
+import { estimateFinance } from "@/lib/finance/estimate";
 import type { MapComplex } from "@/lib/types";
 
 type SearchItem = {
@@ -13,6 +15,8 @@ type SearchItem = {
   legal_dong: string;
   region_code: string;
   region_name: string;
+  locationQuality?: "exact" | "approx";
+  locationSource?: "exact" | "approx";
   location_source?: "exact" | "approx";
   lat: number | null;
   lng: number | null;
@@ -73,6 +77,19 @@ type SnapshotSummary = {
   previousMedianPriceManwon: number | null;
   medianPriceDiffManwon: number | null;
   medianPriceDiffPct: number | null;
+};
+
+type RecommendationItem = {
+  id: string;
+  aptName: string;
+  legalDong: string;
+  regionCode: string;
+  regionName: string;
+  dealAmountManwon: number | null;
+  dealDate: string | null;
+  dealCount3m: number;
+  locationQuality: "exact" | "approx";
+  reasonLabels: string[];
 };
 
 type SortValue = "latest" | "price_desc" | "price_asc" | "deal_count";
@@ -160,6 +177,10 @@ function formatCardTitle(item: SearchItem): string {
   return `단지 #${item.id}`;
 }
 
+function getLocationQuality(item: SearchItem): "exact" | "approx" {
+  return item.locationQuality ?? item.locationSource ?? item.location_source ?? "approx";
+}
+
 function formatGrowthLabel(item: RisingKeyword): string {
   const countLabel = `${item.growthCount >= 0 ? "+" : ""}${item.growthCount.toLocaleString()}건`;
   if (item.growthRatePct === null) return countLabel;
@@ -180,6 +201,19 @@ function formatSignedPrice(value: number | null): string {
 function formatSignedPercent(value: number | null): string {
   if (value === null) return "-";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+function formatQuickMonthlyEstimate(priceManwon: number | null): string {
+  if (priceManwon === null) return "-";
+  const estimate = estimateFinance({
+    priceManwon,
+    ltvPct: 60,
+    annualRatePct: 4.0,
+    years: 30,
+    repaymentType: "amortized"
+  });
+  if (!estimate) return "-";
+  return formatManwon(estimate.monthlyPaymentManwon);
 }
 
 export default function Explorer() {
@@ -219,9 +253,13 @@ export default function Explorer() {
   });
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<string | null>(null);
   const [snapshotSourceLabel, setSnapshotSourceLabel] = useState(DEFAULT_SOURCE_LABEL);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [recommendationUpdatedAt, setRecommendationUpdatedAt] = useState<string | null>(null);
+  const [recommendationSourceLabel, setRecommendationSourceLabel] = useState(DEFAULT_SOURCE_LABEL);
   const [kpiLoading, setKpiLoading] = useState(false);
   const [trendLoading, setTrendLoading] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -407,14 +445,19 @@ export default function Explorer() {
     if (!queryState.q) {
       setSearchItems([]);
       setMapItems([]);
+      setRecommendations([]);
       setUpdatedAt(null);
+      setRecommendationUpdatedAt(null);
       setTotalCount(0);
       setSourceLabel(DEFAULT_SOURCE_LABEL);
+      setRecommendationSourceLabel(DEFAULT_SOURCE_LABEL);
+      setRecommendationLoading(false);
       syncUrl();
       return;
     }
 
     setLoading(true);
+    setRecommendationLoading(true);
     setError("");
 
     try {
@@ -438,13 +481,27 @@ export default function Explorer() {
       const mapQuery = new URLSearchParams(common);
       mapQuery.set("limit", "300");
 
-      const [searchRes, mapRes] = await Promise.all([
+      const recommendationQuery = new URLSearchParams();
+      recommendationQuery.set("q", queryState.q);
+      recommendationQuery.set("exact_only", String(queryState.exactOnly));
+      recommendationQuery.set("sw_lat", String(queryState.bounds.swLat));
+      recommendationQuery.set("sw_lng", String(queryState.bounds.swLng));
+      recommendationQuery.set("ne_lat", String(queryState.bounds.neLat));
+      recommendationQuery.set("ne_lng", String(queryState.bounds.neLng));
+      recommendationQuery.set("limit", "8");
+      if (queryState.region) recommendationQuery.set("region", queryState.region);
+      if (normalizedMinPrice) recommendationQuery.set("min_price", normalizedMinPrice);
+      if (normalizedMaxPrice) recommendationQuery.set("max_price", normalizedMaxPrice);
+
+      const [searchRes, mapRes, recommendationRes] = await Promise.all([
         fetch(`/api/search?${common.toString()}`, { cache: "no-store" }),
-        fetch(`/api/map/complexes?${mapQuery.toString()}`, { cache: "no-store" })
+        fetch(`/api/map/complexes?${mapQuery.toString()}`, { cache: "no-store" }),
+        fetch(`/api/hub/recommendations?${recommendationQuery.toString()}`, { cache: "no-store" })
       ]);
 
       const searchJson = await searchRes.json();
       const mapJson = await mapRes.json();
+      const recommendationJson = await recommendationRes.json();
 
       if (!searchRes.ok || !searchJson.ok) throw new Error(searchJson.error ?? "Search API failed");
       if (!mapRes.ok || !mapJson.ok) throw new Error(mapJson.error ?? "Map API failed");
@@ -454,6 +511,21 @@ export default function Explorer() {
       setUpdatedAt(searchJson.updatedAt ?? null);
       setTotalCount(typeof searchJson.totalCount === "number" ? searchJson.totalCount : (searchJson.items ?? []).length);
       setSourceLabel(typeof searchJson.sourceLabel === "string" && searchJson.sourceLabel.trim() ? searchJson.sourceLabel : DEFAULT_SOURCE_LABEL);
+
+      if (recommendationRes.ok && recommendationJson.ok) {
+        setRecommendations(Array.isArray(recommendationJson.recommendations) ? recommendationJson.recommendations : []);
+        setRecommendationUpdatedAt(recommendationJson.updatedAt ?? null);
+        setRecommendationSourceLabel(
+          typeof recommendationJson.sourceLabel === "string" && recommendationJson.sourceLabel.trim()
+            ? recommendationJson.sourceLabel
+            : DEFAULT_SOURCE_LABEL
+        );
+      } else {
+        setRecommendations([]);
+        setRecommendationUpdatedAt(null);
+        setRecommendationSourceLabel(DEFAULT_SOURCE_LABEL);
+      }
+
       trackEvent("search", {
         search_term: queryState.q,
         region_code: queryState.region || undefined,
@@ -466,9 +538,11 @@ export default function Explorer() {
       setError(e instanceof Error ? e.message : "Unknown error");
       setSearchItems([]);
       setMapItems([]);
+      setRecommendations([]);
       setTotalCount(0);
     } finally {
       setLoading(false);
+      setRecommendationLoading(false);
     }
   }, [queryState, syncUrl]);
 
@@ -508,11 +582,41 @@ export default function Explorer() {
     setExactOnly(false);
     setSearchItems([]);
     setMapItems([]);
+    setRecommendations([]);
     setUpdatedAt(null);
+    setRecommendationUpdatedAt(null);
     setTotalCount(0);
     setSourceLabel(DEFAULT_SOURCE_LABEL);
+    setRecommendationSourceLabel(DEFAULT_SOURCE_LABEL);
     router.replace("/", { scroll: false });
   };
+
+  const hubLivabilityTarget = useMemo(() => {
+    if (!queryState.q) return null;
+    const firstSearch = searchItems[0];
+    if (firstSearch?.id) {
+      const id = Number(firstSearch.id);
+      if (Number.isInteger(id) && id > 0) {
+        return {
+          complexId: id,
+          title: `${formatCardTitle(firstSearch)} · 생활 인프라 요약`
+        };
+      }
+    }
+
+    const firstRecommendation = recommendations[0];
+    if (firstRecommendation?.id) {
+      const id = Number(firstRecommendation.id);
+      if (Number.isInteger(id) && id > 0) {
+        return {
+          complexId: id,
+          title: `${firstRecommendation.aptName || `단지 #${firstRecommendation.id}`} · 생활 인프라 요약`
+        };
+      }
+    }
+
+    return null;
+  }, [queryState.q, recommendations, searchItems]);
 
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 14 }}>
@@ -603,7 +707,7 @@ export default function Explorer() {
               <div>
                 <p style={{ fontWeight: 700 }}>{formatCardTitle(item)}</p>
                 <p style={{ color: "#64748b", fontSize: 14 }}>{formatRegionLabel(item)}</p>
-                {item.location_source === "approx" && <span className="ui-approx-badge">근사 위치</span>}
+                {getLocationQuality(item) === "approx" && <span className="ui-approx-badge">근사 위치</span>}
               </div>
               <div style={{ textAlign: "right" }}>
                 <p style={{ color: "#64748b", fontSize: 13 }}>최근 거래가</p>
@@ -739,6 +843,87 @@ export default function Explorer() {
             </div>
           )}
         </article>
+      </section>
+
+      {hubLivabilityTarget ? (
+        <LivabilitySummaryCard
+          complexId={hubLivabilityTarget.complexId}
+          title="생활 인프라 요약"
+          subtitle={hubLivabilityTarget.title}
+        />
+      ) : (
+        <section className="hub-livability-card" aria-label="생활 인프라 요약">
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>생활 인프라 요약</h2>
+          <p style={{ color: "#64748b", fontSize: 14 }}>
+            검색 결과가 있을 때 선택 단지 기준 생활 인프라 요약이 표시됩니다.
+          </p>
+        </section>
+      )}
+
+      <section className="hub-recommendation-card" aria-label="조건 기반 추천">
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>조건 기반 추천</h2>
+        <p style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
+          현재 검색 조건과 유사한 단지입니다.
+        </p>
+
+        {recommendationLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+        {!recommendationLoading && recommendations.length === 0 && (
+          <p style={{ color: "#64748b", fontSize: 14 }}>표시할 추천 단지가 없습니다.</p>
+        )}
+
+        {!recommendationLoading && recommendations.length > 0 && (
+          <div className="hub-trend-list">
+            {recommendations.map((item) => (
+              <Link key={item.id} href={`/complexes/${item.id}`} className="hub-trend-item">
+                <div>
+                  <p style={{ fontWeight: 700 }}>{item.aptName || `단지 #${item.id}`}</p>
+                  <p className="hub-trend-meta">
+                    {item.regionName} {item.legalDong || `지역 ${item.regionCode}`}
+                  </p>
+                  <div className="hub-recommendation-tags">
+                    {item.reasonLabels.map((label) => (
+                      <span key={`${item.id}-${label}`} className="hub-recommendation-tag">
+                        {label}
+                      </span>
+                    ))}
+                    {item.locationQuality === "approx" && <span className="ui-approx-badge">근사 위치</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ fontWeight: 700 }}>{formatManwon(item.dealAmountManwon)}</p>
+                  <p className="hub-trend-meta">{formatKstDate(item.dealDate)}</p>
+                  <p className="hub-trend-meta">최근 3개월 {item.dealCount3m.toLocaleString()}건</p>
+                  <p className="hub-trend-meta">월 상환액 예상 {formatQuickMonthlyEstimate(item.dealAmountManwon)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {recommendations.length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <Link
+              href={`/complexes/${recommendations[0].id}#finance-estimator`}
+              className="ui-button"
+              onClick={() => trackEvent("finance_cta_click", { cta: "from_hub_recommendation" })}
+            >
+              상환 계산 더보기
+            </Link>
+            <button
+              type="button"
+              className="ui-button hub-button-muted"
+              disabled
+              title="준비중"
+              onClick={() => trackEvent("finance_cta_click", { cta: "loan_consult_coming_soon_from_hub" })}
+            >
+              대출 상담 준비중
+            </button>
+          </div>
+        )}
+
+      <p style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>
+          기준: {recommendationSourceLabel} · 업데이트 {formatKstDateTime(recommendationUpdatedAt)}
+        </p>
       </section>
     </main>
   );
