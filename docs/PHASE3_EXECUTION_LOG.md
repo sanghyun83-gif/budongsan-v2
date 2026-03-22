@@ -1989,3 +1989,73 @@
 - exact_only 일관성:
   - `/api/search?...&exact_only=true` → approx `0건`
   - `/api/map/complexes?...&exact_only=true` → approx `0건`
+
+## 2026-03-22 실행 로그 (Meta Snippet 2차 반영 + 전 라우트 메타 정렬)
+
+### A. 코드 반영
+- 상세 스니펫 개선 1차 적용
+  - `app/complexes/[id]/page.tsx`
+    - 상세 상단에 스니펫용 요약문 추가
+    - 금융 계산 블록을 상세 하단으로 이동
+    - 메타 문구 생성 유틸 함수(`buildComplexTitle`, `buildComplexSummarySnippet`) 추가
+    - `title/description/og:title/og:description`을 상단 요약문 톤으로 통일
+- 금융 블록 스니펫 제어
+  - `components/FinanceEstimateCard.tsx`
+    - `noSnippet` prop 추가
+    - `noSnippet=true`일 때 `data-nosnippet` 속성 적용
+- 전 라우트 메타 공통화/확장
+  - 신규: `lib/seo/metadata.ts`
+    - `buildPageMetadata` 공통 메타 빌더 추가
+  - `app/page.tsx`
+    - 홈 메타(`title/description/og/canonical`) 명시
+  - `app/about/page.tsx`
+    - 공통 메타 빌더 적용 (`/about`)
+  - `app/privacy/page.tsx`
+    - 공통 메타 빌더 적용 (`/privacy`)
+  - `app/terms/page.tsx`
+    - 공통 메타 빌더 적용 (`/terms`)
+  - `app/layout.tsx`
+    - 글로벌 기본 설명문을 `매매·전세·월세` 톤으로 정렬
+
+### B. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+- 로컬 메타 수동 확인(`Invoke-WebRequest` 기반)
+  - 확인 URL:
+    - `/`
+    - `/about`
+    - `/privacy`
+    - `/terms`
+    - `/complexes/452`
+  - 확인 항목:
+    - `<title>`
+    - `meta[name=description]`
+    - `meta[property=og:title]`
+    - `meta[property=og:description]`
+    - `link[rel=canonical]`
+  - 결과: 5개 URL 모두 메타 필드 정상 노출/일관성 확인
+
+### C. 문서 반영
+- `docs/SALJIP_META_SNIPPET_FIX_PLAN_2026-03-22.md`
+  - 실행 체크리스트 1~4 완료 처리
+  - 진행 상태 메모 추가(5~7 대기)
+
+## 2026-03-22 추가 실행 로그 (허브 og:description 분리)
+
+### A. 코드 반영
+- lib/seo/metadata.ts
+  - `buildPageMetadata` 입력 타입에 ogDescription?: string 추가.
+  - Open Graph 설명은 ogDescription ?? description 규칙으로 생성.
+- pp/page.tsx
+  - 허브 메타 호출에서 ogDescription을 별도 지정.
+  - 결과적으로 허브 메타는 아래 정책으로 동작:
+    - description: 출처 포함
+    - og:description: 출처 제외
+
+### B. 검증
+- 명령: 
+pm run lint
+- 결과: 통과
+- 로컬 확인(http://localhost:3000/):
+  - <meta name="description"> = 출처 포함
+  - <meta property="og:description"> = 출처 제외

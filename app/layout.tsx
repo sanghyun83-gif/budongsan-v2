@@ -20,13 +20,14 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://saljip.kr"),
-  title: { default: "살집 | saljip.kr", template: "%s | 살집" },
-  description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+  title: { default: "서울·수도권 아파트 실거래가·시세 | 살집", template: "%s | 살집" },
+  description:
+    "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공. 출처: 국토교통부 실거래가 공개데이터.",
   robots: { index: true, follow: true },
   alternates: { canonical: "https://saljip.kr" },
   openGraph: {
-    title: "살집 | saljip.kr",
-    description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+    title: "서울·수도권 아파트 실거래가·시세 | 살집",
+    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공.",
     url: "https://saljip.kr",
     type: "website",
     siteName: "살집",
@@ -35,8 +36,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "살집 | saljip.kr",
-    description: "서울·수도권 아파트 실거래가와 시세를 한눈에 보는 부동산 데이터 플랫폼",
+    title: "서울·수도권 아파트 실거래가·시세 | 살집",
+    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공.",
     images: ["https://saljip.kr/og-default.png"]
   },
   icons: {
@@ -78,6 +79,33 @@ export default function RootLayout({
           </div>
         </nav>
         {children}
+        <footer style={{ borderTop: "1px solid #e2e8f0", marginTop: 24, background: "#fff" }}>
+          <div
+            style={{
+              maxWidth: 1200,
+              margin: "0 auto",
+              padding: "14px 20px",
+              display: "flex",
+              gap: 14,
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between"
+            }}
+          >
+            <p style={{ color: "#64748b", fontSize: 13 }}>© {new Date().getFullYear()} 살집 · 데이터 기반 부동산 정보 서비스</p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Link href="/about" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
+                About
+              </Link>
+              <Link href="/privacy" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
+                Privacy
+              </Link>
+              <Link href="/terms" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
+                Terms
+              </Link>
+            </div>
+          </div>
+        </footer>
         <Analytics />
         <SpeedInsights />
       </body>
