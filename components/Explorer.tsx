@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HomeMap from "@/components/HomeMap";
@@ -93,6 +93,7 @@ type RecommendationItem = {
 };
 
 type SortValue = "latest" | "price_desc" | "price_asc" | "deal_count";
+type SearchScope = "global" | "map";
 
 const SORT_OPTIONS: Array<{ value: SortValue; label: string }> = [
   { value: "latest", label: "최신 거래순" },
@@ -225,7 +226,9 @@ export default function Explorer() {
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState<SortValue>("latest");
   const [exactOnly, setExactOnly] = useState(false);
+  const [searchScope, setSearchScope] = useState<SearchScope>("global");
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
+  const [hasPendingMapChange, setHasPendingMapChange] = useState(false);
   const [searchItems, setSearchItems] = useState<SearchItem[]>([]);
   const [mapItems, setMapItems] = useState<MapComplex[]>([]);
   const [loading, setLoading] = useState(false);
@@ -261,7 +264,7 @@ export default function Explorer() {
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -277,6 +280,10 @@ export default function Explorer() {
 
     const exactOnlyParam = sp.get("exact_only");
     setExactOnly(exactOnlyParam === "true");
+    const scopeParam = sp.get("scope");
+    if (scopeParam === "global" || scopeParam === "map") {
+      setSearchScope(scopeParam);
+    }
 
     const swLat = Number(sp.get("sw_lat"));
     const swLng = Number(sp.get("sw_lng"));
@@ -416,10 +423,11 @@ export default function Explorer() {
       minPrice: minPrice.trim(),
       maxPrice: maxPrice.trim(),
       sort,
+      scope: searchScope,
       exactOnly,
       bounds
     }),
-    [q, region, minPrice, maxPrice, sort, exactOnly, bounds]
+    [q, region, minPrice, maxPrice, sort, searchScope, exactOnly, bounds]
   );
 
   const syncUrl = useCallback(() => {
@@ -433,6 +441,7 @@ export default function Explorer() {
     if (normalizedMaxPrice) sp.set("max_price", normalizedMaxPrice);
 
     sp.set("sort", queryState.sort);
+    sp.set("scope", queryState.scope);
     if (queryState.exactOnly) sp.set("exact_only", "true");
     sp.set("sw_lat", String(queryState.bounds.swLat));
     sp.set("sw_lng", String(queryState.bounds.swLng));
@@ -466,11 +475,14 @@ export default function Explorer() {
       common.set("page", "1");
       common.set("size", "20");
       common.set("sort", queryState.sort);
+      common.set("scope", queryState.scope);
       common.set("exact_only", String(queryState.exactOnly));
-      common.set("sw_lat", String(queryState.bounds.swLat));
-      common.set("sw_lng", String(queryState.bounds.swLng));
-      common.set("ne_lat", String(queryState.bounds.neLat));
-      common.set("ne_lng", String(queryState.bounds.neLng));
+      if (queryState.scope === "map") {
+        common.set("sw_lat", String(queryState.bounds.swLat));
+        common.set("sw_lng", String(queryState.bounds.swLng));
+        common.set("ne_lat", String(queryState.bounds.neLat));
+        common.set("ne_lng", String(queryState.bounds.neLng));
+      }
       if (queryState.region) common.set("region", queryState.region);
 
       const normalizedMinPrice = sanitizePriceInput(queryState.minPrice);
@@ -479,15 +491,22 @@ export default function Explorer() {
       if (normalizedMaxPrice) common.set("max_price", normalizedMaxPrice);
 
       const mapQuery = new URLSearchParams(common);
+      mapQuery.set("sw_lat", String(queryState.bounds.swLat));
+      mapQuery.set("sw_lng", String(queryState.bounds.swLng));
+      mapQuery.set("ne_lat", String(queryState.bounds.neLat));
+      mapQuery.set("ne_lng", String(queryState.bounds.neLng));
       mapQuery.set("limit", "300");
 
       const recommendationQuery = new URLSearchParams();
       recommendationQuery.set("q", queryState.q);
+      recommendationQuery.set("scope", queryState.scope);
       recommendationQuery.set("exact_only", String(queryState.exactOnly));
-      recommendationQuery.set("sw_lat", String(queryState.bounds.swLat));
-      recommendationQuery.set("sw_lng", String(queryState.bounds.swLng));
-      recommendationQuery.set("ne_lat", String(queryState.bounds.neLat));
-      recommendationQuery.set("ne_lng", String(queryState.bounds.neLng));
+      if (queryState.scope === "map") {
+        recommendationQuery.set("sw_lat", String(queryState.bounds.swLat));
+        recommendationQuery.set("sw_lng", String(queryState.bounds.swLng));
+        recommendationQuery.set("ne_lat", String(queryState.bounds.neLat));
+        recommendationQuery.set("ne_lng", String(queryState.bounds.neLng));
+      }
       recommendationQuery.set("limit", "8");
       if (queryState.region) recommendationQuery.set("region", queryState.region);
       if (normalizedMinPrice) recommendationQuery.set("min_price", normalizedMinPrice);
@@ -530,9 +549,11 @@ export default function Explorer() {
         search_term: queryState.q,
         region_code: queryState.region || undefined,
         results_count: Array.isArray(searchJson.items) ? searchJson.items.length : 0,
+        search_scope: queryState.scope,
         exact_only: queryState.exactOnly,
         sort: queryState.sort
       });
+      setHasPendingMapChange(false);
       syncUrl();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -548,20 +569,14 @@ export default function Explorer() {
 
   const onMapBoundsChanged = useCallback((next: Bounds) => {
     setBounds(next);
-  }, []);
+    if (initialized) setHasPendingMapChange(true);
+  }, [initialized]);
 
   useEffect(() => {
-    if (!initialized) return;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      void fetchAll();
-    }, 450);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [initialized, queryState.bounds, fetchAll]);
+    if (!initialized || bootstrapped) return;
+    void fetchAll();
+    setBootstrapped(true);
+  }, [initialized, bootstrapped, fetchAll]);
 
   const runSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -671,7 +686,38 @@ export default function Explorer() {
         </button>
       </form>
 
-      <p style={{ color: "#64748b", fontSize: 13 }}>Enter 또는 검색 버튼으로 조회됩니다. 지도 이동 시 현재 바운드로 자동 재검색됩니다.</p>
+      <p style={{ color: "#64748b", fontSize: 13 }}>
+        Enter 또는 검색 버튼으로 조회됩니다. 기본은 전국 검색이며, 필요 시 지도 범위 검색으로 전환할 수 있습니다.
+      </p>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <button
+          type="button"
+          className={`ui-button ${queryState.scope === "global" ? "" : "hub-button-muted"}`}
+          onClick={() => setSearchScope("global")}
+        >
+          전국 검색
+        </button>
+        <button
+          type="button"
+          className={`ui-button ${queryState.scope === "map" ? "" : "hub-button-muted"}`}
+          onClick={() => setSearchScope("map")}
+        >
+          지도 내 검색
+        </button>
+        {hasPendingMapChange && (
+          <button
+            type="button"
+            className="ui-button"
+            onClick={() => {
+              setSearchScope("map");
+              void fetchAll();
+            }}
+          >
+            이 지도에서 검색
+          </button>
+        )}
+      </div>
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontSize: 14 }}>
         <input type="checkbox" checked={exactOnly} onChange={(e) => setExactOnly(e.target.checked)} />
@@ -681,6 +727,7 @@ export default function Explorer() {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#475569", fontSize: 14 }}>
         <span>출처: {sourceLabel}</span>
         <span>최종 업데이트: {formatKstDateTime(updatedAt)}</span>
+        <span>검색 범위: {queryState.scope === "map" ? "현재 지도" : "전국"}</span>
         <span>리스트 {totalCount}건 · 지도 {mapItems.length}건</span>
       </div>
 
