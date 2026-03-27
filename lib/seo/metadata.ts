@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 export const SITE_ORIGIN = "https://saljip.kr";
 export const DEFAULT_OG_IMAGE = "https://saljip.kr/og-default.png";

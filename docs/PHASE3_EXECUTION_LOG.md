@@ -2059,3 +2059,34 @@ pm run lint
 - 로컬 확인(http://localhost:3000/):
   - <meta name="description"> = 출처 포함
   - <meta property="og:description"> = 출처 제외
+## 2026-03-28 실행 로그 (Global Meta v2 일괄 반영 + 깨진 문자열 복구)
+
+### A. 코드 반영
+- `app/complexes/[id]/page.tsx`
+  - 상세 메타 템플릿 v2 반영:
+    - `title`: `{단지명} 실거래가·시세 | {법정동} 매매·전세·월세`
+    - `og:title`: `{단지명} 실거래가·시세 | {법정동} 아파트 | 살집`
+  - 상단 요약문에 실측값 반영:
+    - 최근 거래일
+    - 최근 거래가
+    - 최근 3개월 거래량
+- `app/page.tsx`
+  - 허브 메타 문구를 v2 템플릿으로 재정렬 및 깨진 문자열(모지바케) 복구
+- `lib/seo/metadata.ts`
+  - 공통 메타 유틸 내 브랜드/OG/Twitter 문자열 깨짐 복구 (`살집`)
+
+### B. 전 라우트 점검
+- 메타 정의 라우트/유틸 전수 확인:
+  - `app/layout.tsx`
+  - `app/page.tsx`
+  - `app/complexes/[id]/page.tsx`
+  - `app/about/page.tsx`
+  - `app/privacy/page.tsx`
+  - `app/terms/page.tsx`
+  - `lib/seo/metadata.ts`
+- 결과: 메타 정의 대상 라우트 기준 문자열 깨짐 이슈 해소 및 템플릿 일관성 확보
+
+### C. 검증
+- 명령: `npm run lint`
+- 결과: 통과
+- 문자열 점검: 깨짐 패턴 검색(`rg`) 결과 이상 없음

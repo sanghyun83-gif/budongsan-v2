@@ -21,6 +21,27 @@ const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   hour12: false
 });
 
+function buildComplexTitle(aptName: string): string {
+  return `${aptName} 실거래가·시세`;
+}
+
+function formatLatestDealDate(date: string | null): string {
+  if (!date) return "-";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleDateString("ko-KR");
+}
+
+function buildComplexSummarySnippet(
+  legalDong: string,
+  aptName: string,
+  latestDealDate: string | null,
+  latestDealAmount: number | null,
+  dealCount3m: number
+): string {
+  return `${legalDong} ${aptName} 아파트의 매매·전세·월세 실거래가와 시세를 제공합니다. 최근 거래일은 ${formatLatestDealDate(latestDealDate)}, 최근 거래가는 ${formatManwon(latestDealAmount)}, 최근 3개월 거래량은 ${dealCount3m}건입니다.`;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const complexId = Number(id);
@@ -29,16 +50,23 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const complex = await getComplexSummaryById(complexId);
   if (!complex) return {};
 
-  const title = `${complex.aptName} 실거래가·시세`;
-  const description = `${complex.regionName} ${complex.legalDong} ${complex.aptName} 아파트의 최근 실거래가, 평형별 가격, 거래 요약.`;
+  const title = `${buildComplexTitle(complex.aptName)} | ${complex.legalDong} 매매·전세·월세`;
+  const summarySnippet = buildComplexSummarySnippet(
+    complex.legalDong,
+    complex.aptName,
+    complex.latestDealDate,
+    complex.latestDealAmount,
+    complex.dealCount3m
+  );
+  const socialTitle = `${buildComplexTitle(complex.aptName)} | ${complex.legalDong} 아파트 | 살집`;
 
   return {
     title,
-    description,
+    description: summarySnippet,
     alternates: { canonical: `https://saljip.kr/complexes/${id}` },
     openGraph: {
-      title,
-      description,
+      title: socialTitle,
+      description: summarySnippet,
       url: `https://saljip.kr/complexes/${id}`,
       type: "website",
       siteName: "살집",
@@ -47,8 +75,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: socialTitle,
+      description: summarySnippet,
       images: ["https://saljip.kr/og-default.png"]
     }
   };
@@ -81,6 +109,13 @@ export default async function ComplexDetailPage({ params }: PageProps) {
   const complex = await getComplexSummaryById(complexId);
   if (!complex) notFound();
   const locationQuality = complex.locationQuality ?? complex.locationSource ?? "approx";
+  const summarySnippet = buildComplexSummarySnippet(
+    complex.legalDong,
+    complex.aptName,
+    complex.latestDealDate,
+    complex.latestDealAmount,
+    complex.dealCount3m
+  );
 
   const deals = await getComplexDealsById(complexId, 1, 20);
 
@@ -102,6 +137,9 @@ export default async function ComplexDetailPage({ params }: PageProps) {
         </div>
         <p style={{ color: "#64748b", marginTop: 4 }}>
           데이터 기준일: API 조회 시점 기준
+        </p>
+        <p style={{ color: "#0f172a", marginTop: 10, lineHeight: 1.55 }}>
+          {summarySnippet}
         </p>
       </section>
 
@@ -127,8 +165,6 @@ export default async function ComplexDetailPage({ params }: PageProps) {
           <p style={{ fontSize: 24, fontWeight: 800 }}>{complex.dealCount3m}건</p>
         </div>
       </section>
-
-      <FinanceEstimateCard complexId={complexId} aptName={complex.aptName} defaultPriceManwon={complex.latestDealAmount} />
 
       <LivabilitySummaryCard
         complexId={complexId}
@@ -164,6 +200,13 @@ export default async function ComplexDetailPage({ params }: PageProps) {
           </div>
         )}
       </section>
+
+      <FinanceEstimateCard
+        complexId={complexId}
+        aptName={complex.aptName}
+        defaultPriceManwon={complex.latestDealAmount}
+        noSnippet
+      />
 
       <DetailActionBar complexId={complexId} />
     </main>

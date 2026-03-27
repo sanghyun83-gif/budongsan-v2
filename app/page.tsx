@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Explorer from "@/components/Explorer";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 
