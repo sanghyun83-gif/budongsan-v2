@@ -9,6 +9,7 @@ interface FinanceEstimateCardProps {
   aptName?: string;
   defaultPriceManwon: number | null;
   className?: string;
+  noSnippet?: boolean;
 }
 
 type FinanceApiResponse = {
@@ -52,7 +53,8 @@ export default function FinanceEstimateCard({
   complexId,
   aptName,
   defaultPriceManwon,
-  className
+  className,
+  noSnippet = false
 }: FinanceEstimateCardProps) {
   const [priceManwon, setPriceManwon] = useState(defaultPriceManwon ? String(defaultPriceManwon) : "");
   const [ltv, setLtv] = useState("60");
@@ -137,7 +139,12 @@ export default function FinanceEstimateCard({
   const estimate = estimateFromApi ?? fallbackEstimate ?? null;
 
   return (
-    <section className={className ?? "hub-finance-card"} id="finance-estimator" aria-label="금융 연계 계산">
+    <section
+      className={className ?? "hub-finance-card"}
+      id="finance-estimator"
+      aria-label="금융 연계 계산"
+      {...(noSnippet ? { "data-nosnippet": "" } : {})}
+    >
       <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>금융 연계 (월 상환액 추정)</h3>
       <p style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
         {aptName ? `${aptName} 기준` : "현재 단지 기준"} · 원리금균등상환 추정
@@ -248,4 +255,3 @@ export default function FinanceEstimateCard({
     </section>
   );
 }
-
