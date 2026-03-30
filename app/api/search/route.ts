@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
+import { buildSearchMatcher } from "@/lib/search/matcher";
 
 const sortSchema = z.enum(["latest", "price_desc", "price_asc", "deal_count"]);
 const MAX_DB_INT = 2_147_483_647;
@@ -11,6 +12,9 @@ const querySchema = z.object({
   region: z.string().regex(/^\d{5}$/).optional(),
   min_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
   max_price: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
+  max_age_years: z.coerce.number().int().min(0).max(100).optional(),
+  min_total_units: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
+  max_total_units: z.coerce.number().int().min(0).max(MAX_DB_INT).optional(),
   sw_lat: z.coerce.number().min(-90).max(90).optional(),
   sw_lng: z.coerce.number().min(-180).max(180).optional(),
   ne_lat: z.coerce.number().min(-90).max(90).optional(),
@@ -18,7 +22,21 @@ const querySchema = z.object({
   sort: sortSchema.default("latest"),
   page: z.coerce.number().int().min(1).default(1),
   size: z.coerce.number().int().min(1).max(50).default(20)
-});
+})
+.refine(
+  (input) => {
+    if (input.min_price === undefined || input.max_price === undefined) return true;
+    return input.min_price <= input.max_price;
+  },
+  { message: "min_price must be less than or equal to max_price" }
+)
+.refine(
+  (input) => {
+    if (input.min_total_units === undefined || input.max_total_units === undefined) return true;
+    return input.min_total_units <= input.max_total_units;
+  },
+  { message: "min_total_units must be less than or equal to max_total_units" }
+);
 
 const ORDER_BY: Record<z.infer<typeof sortSchema>, string> = {
   latest: "latest.deal_date DESC NULLS LAST, scored.rank_score DESC, c.id DESC",
@@ -50,6 +68,9 @@ export async function GET(req: NextRequest) {
       region: params.get("region") ?? undefined,
       min_price: params.get("min_price") ?? undefined,
       max_price: params.get("max_price") ?? undefined,
+      max_age_years: params.get("max_age_years") ?? undefined,
+      min_total_units: params.get("min_total_units") ?? undefined,
+      max_total_units: params.get("max_total_units") ?? undefined,
       sw_lat: params.get("sw_lat") ?? undefined,
       sw_lng: params.get("sw_lng") ?? undefined,
       ne_lat: params.get("ne_lat") ?? undefined,
@@ -69,6 +90,8 @@ export async function GET(req: NextRequest) {
         c.apt_name,
         c.legal_dong,
         c.location_source,
+        c.build_year,
+        c.total_units,
         c.updated_at AS complex_updated_at,
         r.code AS region_code,
         r.name_ko AS region_name,
@@ -94,12 +117,34 @@ export async function GET(req: NextRequest) {
           AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
       ) stats ON true
       CROSS JOIN LATERAL (
+        SELECT lower(regexp_replace(coalesce(c.apt_name, '') || coalesce(c.legal_dong, ''), '[^0-9a-zA-Z가-힣]', '', 'g')) AS text_norm
+      ) norm
+      CROSS JOIN LATERAL (
         SELECT
           CASE
             WHEN c.apt_name ILIKE $12 THEN 300
             WHEN c.legal_dong ILIKE $12 THEN 250
             WHEN c.apt_name ILIKE $1 THEN 180
             WHEN c.legal_dong ILIKE $1 THEN 140
+            WHEN $16::TEXT IS NOT NULL AND norm.text_norm LIKE $16 THEN 200
+            ELSE 0
+          END
+          + CASE
+            WHEN $17::TEXT[] IS NOT NULL AND EXISTS (
+              SELECT 1
+              FROM unnest($17::TEXT[]) p
+              WHERE p <> '' AND norm.text_norm LIKE ('%' || p || '%')
+            ) THEN 60
+            ELSE 0
+          END
+          + CASE
+            WHEN $18::TEXT[] IS NOT NULL
+             AND cardinality($18) > 0
+             AND NOT EXISTS (
+               SELECT 1
+               FROM unnest($18::TEXT[]) t
+               WHERE t <> '' AND norm.text_norm NOT LIKE ('%' || t || '%')
+             ) THEN 80
             ELSE 0
           END
           + CASE
@@ -109,11 +154,41 @@ export async function GET(req: NextRequest) {
           END AS rank_score
       ) scored
       WHERE
-        (c.apt_name ILIKE $1 OR c.legal_dong ILIKE $1)
+        (
+          c.apt_name ILIKE $1
+          OR c.legal_dong ILIKE $1
+          OR ($16::TEXT IS NOT NULL AND norm.text_norm LIKE $16)
+          OR (
+            $17::TEXT[] IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM unnest($17::TEXT[]) p
+              WHERE p <> '' AND norm.text_norm LIKE ('%' || p || '%')
+            )
+          )
+          OR (
+            $18::TEXT[] IS NOT NULL
+            AND cardinality($18) > 0
+            AND NOT EXISTS (
+              SELECT 1
+              FROM unnest($18::TEXT[]) t
+              WHERE t <> '' AND norm.text_norm NOT LIKE ('%' || t || '%')
+            )
+          )
+        )
         AND ($2::VARCHAR IS NULL OR r.code = $2)
         AND ($3::INT IS NULL OR latest.deal_amount_manwon >= $3)
         AND ($4::INT IS NULL OR latest.deal_amount_manwon <= $4)
         AND ($11::BOOLEAN = false OR c.location_source = 'exact')
+        AND (
+          $13::INT IS NULL
+          OR (
+            c.build_year IS NOT NULL
+            AND (EXTRACT(YEAR FROM CURRENT_DATE)::INT - c.build_year) <= $13
+          )
+        )
+        AND ($14::INT IS NULL OR c.total_units >= $14)
+        AND ($15::INT IS NULL OR c.total_units <= $15)
         AND (
           $7::DOUBLE PRECISION IS NULL
           OR $8::DOUBLE PRECISION IS NULL
@@ -128,11 +203,10 @@ export async function GET(req: NextRequest) {
       LIMIT $5 OFFSET $6
     `;
 
-    const like = `%${input.q}%`;
-    const exactKeyword = input.q;
+    const matcher = buildSearchMatcher(input.q);
 
     const result = await pool.query(sql, [
-      like,
+      matcher.qLike,
       input.region ?? null,
       input.min_price ?? null,
       input.max_price ?? null,
@@ -143,8 +217,36 @@ export async function GET(req: NextRequest) {
       input.ne_lat ?? null,
       input.ne_lng ?? null,
       exactOnly,
-      exactKeyword
+      matcher.qExact,
+      input.max_age_years ?? null,
+      input.min_total_units ?? null,
+      input.max_total_units ?? null,
+      matcher.qNormLike,
+      matcher.patternTerms,
+      matcher.andTokens
     ]);
+
+    const mappedItems = result.rows.map((row) => {
+      const locationQuality = row.location_source === "exact" ? "exact" : "approx";
+      return {
+        id: String(row.id),
+        apt_name: row.apt_name,
+        legal_dong: row.legal_dong ?? "",
+        region_code: row.region_code,
+        region_name: row.region_name,
+        lat: row.lat === null ? null : Number(row.lat),
+        lng: row.lng === null ? null : Number(row.lng),
+        deal_amount_manwon: row.deal_amount_manwon === null ? null : Number(row.deal_amount_manwon),
+        deal_date: row.deal_date ? new Date(row.deal_date).toISOString() : null,
+        build_year: row.build_year === null ? null : Number(row.build_year),
+        total_units: row.total_units === null ? null : Number(row.total_units),
+        deal_count_3m: Number(row.deal_count_3m ?? 0),
+        locationQuality,
+        // Legacy fields for backward compatibility.
+        location_source: locationQuality,
+        locationSource: locationQuality
+      };
+    });
 
     const totalCount = result.rows.length > 0 ? Number(result.rows[0].total_count ?? 0) : 0;
     const latestTimestamp = result.rows.reduce((maxTs: number, row) => {
@@ -163,11 +265,11 @@ export async function GET(req: NextRequest) {
       ok: true,
       query: { ...input, exact_only: exactOnly },
       appliedSort: input.sort,
-      count: result.rows.length,
+      count: mappedItems.length,
       totalCount,
       sourceLabel: "국토교통부 실거래가 공개데이터",
       updatedAt,
-      items: result.rows
+      items: mappedItems
     });
   } catch (error) {
     logApiError("GET /api/search", error);
