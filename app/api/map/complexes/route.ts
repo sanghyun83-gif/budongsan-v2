@@ -251,7 +251,7 @@ async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng:
       return deals.map((d, idx) => {
         const lat = center.lat + hashToOffset(d.aptId + "lat");
         const lng = center.lng + hashToOffset(d.aptId + "lng");
-        const out: MapComplex = {
+        const out = {
           id: idx + 1,
           aptId: d.aptId,
           aptName: d.aptName,
@@ -266,7 +266,7 @@ async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng:
           locationQuality: "approx",
           // Legacy field for backward compatibility.
           locationSource: "approx"
-        };
+        } as MapComplex;
         return out;
       });
     })
