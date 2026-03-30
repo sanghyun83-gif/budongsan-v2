@@ -258,7 +258,6 @@ async function fetchFallback(swLat: number, swLng: number, neLat: number, neLng:
           aptName: d.aptName,
           legalDong: d.legalDong,
           dealAmount: d.dealAmount,
-          dealDate: null,
           dealCount3m: 0,
           regionCode: code,
           regionName: undefined,
