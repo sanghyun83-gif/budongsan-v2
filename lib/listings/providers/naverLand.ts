@@ -8,6 +8,15 @@ import type {
   ListingProviderFetchResult
 } from "@/lib/listings/adapters";
 
+const LIVE_ENABLED = process.env.LISTINGS_NAVER_LIVE_ENABLED === "true";
+const LIVE_ENDPOINT = (process.env.LISTINGS_NAVER_LIVE_ENDPOINT ?? "").trim();
+const REQUEST_TIMEOUT_MS = Number(process.env.LISTINGS_NAVER_TIMEOUT_MS ?? 3500);
+const REQUEST_RETRY_COUNT = Number(process.env.LISTINGS_NAVER_RETRY_COUNT ?? 1);
+
+function toPositiveInt(value: number, fallback: number): number {
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
+}
+
 /**
  * 네이버 부동산 원본 응답 스캐폴드 타입
  * - 실제 연동 시 필드명을 원본 스펙 기준으로 정교화할 것
@@ -175,6 +184,8 @@ export function dedupeNaverLandListings(items: ComplexListingItem[]): ComplexLis
 export async function fetchNaverLandRaw(
   params: ListingProviderFetchParams
 ): Promise<ListingProviderFetchResult<RawNaverLandListing>> {
+  const nowIso = new Date().toISOString();
+
   if (params.fixture === "sample") {
     const fixturePath = join(process.cwd(), "lib", "listings", "providers", "fixtures", "naverLand.sample.json");
     const raw = await readFile(fixturePath, "utf8");
@@ -185,9 +196,11 @@ export async function fetchNaverLandRaw(
       items,
       totalCount: items.length,
       sourceLabel: "네이버부동산(샘플 fixture)",
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowIso,
       rawMeta: {
         provider: "naver_land",
+        mode: "fixture",
+        integrationStatus: "pending",
         fixture: "sample",
         page: params.page,
         size: params.size,
@@ -197,23 +210,97 @@ export async function fetchNaverLandRaw(
     };
   }
 
-  // TODO(provider-naver_land): 실제 provider 연동 구현
-  // 1) 접근 정책/약관 검토
-  // 2) 호출 endpoint 확정 + 인증/헤더 반영
-  // 3) timeout/retry/rate-limit 처리
-  // 4) rawMeta에 원본 응답 메타(page, hasMore, requestId 등) 적재
+  if (!LIVE_ENABLED || !LIVE_ENDPOINT) {
+    return {
+      items: [],
+      totalCount: 0,
+      sourceLabel: "네이버부동산(연동 준비중)",
+      updatedAt: nowIso,
+      rawMeta: {
+        provider: "naver_land",
+        mode: "placeholder",
+        integrationStatus: "pending",
+        page: params.page,
+        size: params.size,
+        complexId: params.complexId,
+        liveEnabled: LIVE_ENABLED,
+        hasEndpoint: Boolean(LIVE_ENDPOINT),
+        note: "live_disabled_or_endpoint_missing"
+      }
+    };
+  }
+
+  const timeoutMs = toPositiveInt(REQUEST_TIMEOUT_MS, 3500);
+  const retryCount = toPositiveInt(REQUEST_RETRY_COUNT, 1);
+  const apiUrl = new URL(LIVE_ENDPOINT);
+  apiUrl.searchParams.set("complexId", String(params.complexId));
+  apiUrl.searchParams.set("page", String(params.page));
+  apiUrl.searchParams.set("size", String(params.size));
+  apiUrl.searchParams.set("dealType", params.dealType);
+  apiUrl.searchParams.set("propertyType", params.propertyType);
+
+  let attempt = 0;
+  let lastError = "unknown_error";
+
+  while (attempt <= retryCount) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(apiUrl.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        lastError = `http_${response.status}`;
+        attempt += 1;
+        continue;
+      }
+
+      const json = (await response.json()) as { items?: unknown[]; totalCount?: number };
+      const items = Array.isArray(json.items) ? (json.items as RawNaverLandListing[]) : [];
+
+      return {
+        items,
+        totalCount: typeof json.totalCount === "number" ? json.totalCount : items.length,
+        sourceLabel: "네이버부동산(실연동)",
+        updatedAt: new Date().toISOString(),
+        rawMeta: {
+          provider: "naver_land",
+          mode: "live",
+          integrationStatus: "active",
+          page: params.page,
+          size: params.size,
+          complexId: params.complexId,
+          attempts: attempt + 1
+        }
+      };
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error instanceof Error ? error.message : String(error);
+      attempt += 1;
+    }
+  }
 
   return {
     items: [],
     totalCount: 0,
-    sourceLabel: "네이버부동산(연동 준비중)",
+    sourceLabel: "네이버부동산(실연동 오류)",
     updatedAt: new Date().toISOString(),
     rawMeta: {
       provider: "naver_land",
+      mode: "live",
+      integrationStatus: "error",
       page: params.page,
       size: params.size,
       complexId: params.complexId,
-      note: "scaffold"
+      retryCount,
+      error: lastError,
+      note: "live_fetch_failed"
     }
   };
 }

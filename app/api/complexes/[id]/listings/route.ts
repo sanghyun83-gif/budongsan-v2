@@ -68,10 +68,32 @@ export async function GET(req: NextRequest, context: Context) {
       nowIso: new Date().toISOString()
     });
 
+    const rawMode = typeof fetched.rawMeta?.mode === "string" ? fetched.rawMeta.mode : null;
+    const rawStatus = typeof fetched.rawMeta?.integrationStatus === "string" ? fetched.rawMeta.integrationStatus : null;
+
+    const mode: "placeholder" | "fixture" | "live" =
+      rawMode === "fixture" || rawMode === "live" || rawMode === "placeholder"
+        ? rawMode
+        : providerKey === "placeholder"
+          ? "placeholder"
+          : "live";
+
+    const integrationStatus: "pending" | "active" | "error" =
+      rawStatus === "pending" || rawStatus === "active" || rawStatus === "error"
+        ? rawStatus
+        : mode === "live"
+          ? "active"
+          : "pending";
+
+    const message =
+      integrationStatus === "error"
+        ? "매물 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+        : "현재 단계에서는 실거래 중심 탐색에 집중합니다. 매물 연동은 트래픽 검증 후 진행합니다.";
+
     return NextResponse.json({
       ok: true,
-      mode: providerKey === "placeholder" ? "placeholder" : "live",
-      integrationStatus: providerKey === "placeholder" ? "pending" : "active",
+      mode,
+      integrationStatus,
       adapterContractVersion: adapter.version,
       adapterKey: adapter.key,
       availableAdapterKeys: listListingAdapterKeys(),
@@ -89,7 +111,7 @@ export async function GET(req: NextRequest, context: Context) {
       supportedPropertyTypes: ["apartment"],
       sourceLabel: fetched.sourceLabel ?? "매물 연동 준비중",
       updatedAt: fetched.updatedAt ?? new Date().toISOString(),
-      message: "현재 단계에서는 실거래 중심 탐색에 집중합니다. 매물 연동은 트래픽 검증 후 진행합니다."
+      message
     });
   } catch (error) {
     logApiError("GET /api/complexes/:id/listings", error);

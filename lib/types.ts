@@ -58,8 +58,8 @@ export interface ComplexListingItem {
 
 export interface ComplexListingsResponse {
   ok: boolean;
-  mode: "placeholder" | "live";
-  integrationStatus: "pending" | "active";
+  mode: "placeholder" | "fixture" | "live";
+  integrationStatus: "pending" | "active" | "error";
   adapterContractVersion?: "v1";
   adapterKey?: "placeholder" | "naver_land" | "zigbang" | "dabang" | "kb_land";
   availableAdapterKeys?: Array<"placeholder" | "naver_land" | "zigbang" | "dabang" | "kb_land">;
