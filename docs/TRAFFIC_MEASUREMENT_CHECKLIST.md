@@ -11,11 +11,17 @@
 - [ ] `utm_medium` 타입 통일 (community, social, cpc)
 - [ ] `utm_campaign` 주차 단위로 관리 (예: mvp_test_week1)
 
-## Event Tracking
-- [ ] `search_submit` 이벤트 수집 확인
-- [ ] `complex_detail_view` 이벤트 수집 확인
-- [ ] `cta_click` 이벤트 수집 확인
-- [ ] 이벤트 누락 시 `/api/events/cta` 로그 점검
+## Event Tracking (HYBRID 표준)
+- [ ] `view_search_results` 이벤트 수집 확인
+- [ ] `map_pin_click` 이벤트 수집 확인
+- [ ] `detail_view` 이벤트 수집 확인
+- [x] `cta_click` 이벤트 수집 확인 (`/api/events/cta`)
+
+### 현재 코드 매핑 상태 (2026-04-04)
+- [x] 검색 이벤트 표준화: `view_search_results` (`components/Explorer.tsx`)
+- [x] 상세 진입 이벤트 표준화: `detail_view` (`components/DetailActionBar.tsx`)
+- [x] `map_pin_click` 이벤트 추가 (`components/HomeMap.tsx`)
+- [ ] 이벤트 누락 시 `/api/events/cta` + 클라이언트 콘솔 로그 병행 점검
 
 ## QA Flow (Desktop + Mobile)
 - [ ] UTM 랜딩 URL 접속

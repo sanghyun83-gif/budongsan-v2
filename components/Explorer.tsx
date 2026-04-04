@@ -648,7 +648,7 @@ export default function Explorer() {
         setRecommendationSourceLabel(DEFAULT_SOURCE_LABEL);
       }
 
-      trackEvent("search", {
+      trackEvent("view_search_results", {
         search_term: queryState.q,
         region_code: queryState.region || undefined,
         results_count: Array.isArray(searchJson.items) ? searchJson.items.length : 0,

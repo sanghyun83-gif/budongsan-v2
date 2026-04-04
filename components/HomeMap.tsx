@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { loadKakaoMapsSdk } from "@/lib/map/kakao";
 import type { MapComplex } from "@/lib/types";
 
@@ -110,6 +111,11 @@ export default function HomeMap({ complexes, onBoundsChanged, onMarkerSelected, 
       });
 
       window.kakao.maps.event.addListener(marker, "click", () => {
+        trackEvent("map_pin_click", {
+          complex_id: c.id,
+          apt_name: c.aptName,
+          source: "home_map"
+        });
         onMarkerSelected?.(c);
       });
 

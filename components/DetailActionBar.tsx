@@ -17,8 +17,9 @@ export default function DetailActionBar({ complexId }: DetailActionBarProps) {
   const [alertEnabled, setAlertEnabled] = useState(false);
 
   useEffect(() => {
-    trackEvent("view_complex_detail", {
-      complex_id: complexId
+    trackEvent("detail_view", {
+      complex_id: complexId,
+      source: "complex_detail"
     });
     setFavorited(hasStoredId(FAVORITE_KEY, complexId));
     setAlertEnabled(hasStoredId(ALERT_KEY, complexId));
