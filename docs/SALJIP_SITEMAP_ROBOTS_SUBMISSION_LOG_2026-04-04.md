@@ -4,16 +4,13 @@
 - HYBRID Phase 3 `sitemap/robots 제출 완료` 체크를 닫기 위한 수동 제출 로그를 남긴다.
 
 ## 기술 상태 (코드)
-- [x] sitemap 분할 반영 (`/sitemap/[id].xml`)
+- [x] `sitemap.xml` 라우트 복구 (404 해소)
 - [x] URL별 `lastmod` 반영 (`complex.updated_at`)
 - [x] robots 설정 반영 (`/robots.txt` + sitemap 경로)
 
 ## 제출 대상
 - robots: `https://saljip.kr/robots.txt`
-- sitemap index(Next metadata): `https://saljip.kr/sitemap.xml`
-- 분할 sitemap 예시:
-  - `https://saljip.kr/sitemap/0.xml`
-  - `https://saljip.kr/sitemap/1.xml`
+- sitemap: `https://saljip.kr/sitemap.xml`
 
 ## GSC 제출 로그
 - [ ] Search Console 속성 선택

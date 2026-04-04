@@ -2,30 +2,14 @@ import type { MetadataRoute } from "next";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "https://saljip.kr";
-const SITEMAP_CHUNK_SIZE = 1000;
 
 type ComplexSitemapRow = {
   id: number;
   updatedAt: string;
 };
 
-async function getComplexCount(): Promise<number> {
-  if (!hasDatabaseUrl()) return 0;
-
-  try {
-    const pool = getDbPool();
-    const result = await pool.query(`SELECT COUNT(*)::INT AS total FROM complex`);
-    const total = Number(result.rows[0]?.total ?? 0);
-    return Number.isFinite(total) && total > 0 ? total : 0;
-  } catch {
-    return 0;
-  }
-}
-
-async function getComplexChunk(chunkId: number, size = SITEMAP_CHUNK_SIZE): Promise<ComplexSitemapRow[]> {
+async function getRecentComplexRows(limit = 3000): Promise<ComplexSitemapRow[]> {
   if (!hasDatabaseUrl()) return [];
-
-  const offset = chunkId * size;
 
   try {
     const pool = getDbPool();
@@ -33,10 +17,10 @@ async function getComplexChunk(chunkId: number, size = SITEMAP_CHUNK_SIZE): Prom
       `
       SELECT id, updated_at
       FROM complex
-      ORDER BY id ASC
-      LIMIT $1 OFFSET $2
+      ORDER BY updated_at DESC
+      LIMIT $1
       `,
-      [size, offset]
+      [limit]
     );
 
     return result.rows
@@ -50,27 +34,18 @@ async function getComplexChunk(chunkId: number, size = SITEMAP_CHUNK_SIZE): Prom
   }
 }
 
-export async function generateSitemaps() {
-  const total = await getComplexCount();
-  const chunks = Math.max(1, Math.ceil(total / SITEMAP_CHUNK_SIZE));
-  return Array.from({ length: chunks }, (_, id) => ({ id }));
-}
-
-export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const complexRows = await getComplexChunk(id, SITEMAP_CHUNK_SIZE);
+  const complexRows = await getRecentComplexRows(3000);
 
-  const baseEntries: MetadataRoute.Sitemap =
-    id === 0
-      ? [
-          {
-            url: `${BASE_URL}/`,
-            lastModified: now,
-            changeFrequency: "hourly",
-            priority: 1
-          }
-        ]
-      : [];
+  const baseEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/`,
+      lastModified: now,
+      changeFrequency: "hourly",
+      priority: 1
+    }
+  ];
 
   const complexEntries: MetadataRoute.Sitemap = complexRows.map((row) => ({
     url: `${BASE_URL}/complexes/${row.id}`,

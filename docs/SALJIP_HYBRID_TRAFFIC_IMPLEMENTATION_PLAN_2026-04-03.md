@@ -197,7 +197,7 @@
 - [x] 내부링크 강화 반영
   - 현재상태: Batch1 대상 페이지에 관련 단지 내부링크(9개) 반영
 - [ ] sitemap/robots 제출 완료
-  - 진행상태: sitemap 분할/lastmod 정확화 코드 반영 완료, GSC/네이버 수동 제출 대기
+  - 진행상태: sitemap.xml(lastmod 정확화) + robots 코드 반영 완료, GSC/네이버 수동 제출 대기
   - 작업파일: `app/sitemap.ts`, `app/robots.ts`
   - 제출 로그: `docs/SALJIP_SITEMAP_ROBOTS_SUBMISSION_LOG_2026-04-04.md`
 - [ ] CTR 개선 1차 완료
