@@ -1,12 +1,12 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HomeMap from "@/components/HomeMap";
 import LivabilitySummaryCard from "@/components/LivabilitySummaryCard";
 import { trackEvent } from "@/lib/analytics";
-import { estimateFinance } from "@/lib/finance/estimate";
+import { hasStoredId, toggleStoredId } from "@/lib/clientPrefs";
 import type { MapComplex } from "@/lib/types";
 
 type SearchItem = {
@@ -15,6 +15,8 @@ type SearchItem = {
   legal_dong: string;
   region_code: string;
   region_name: string;
+  build_year: number | null;
+  total_units: number | null;
   locationQuality?: "exact" | "approx";
   locationSource?: "exact" | "approx";
   location_source?: "exact" | "approx";
@@ -93,7 +95,9 @@ type RecommendationItem = {
 };
 
 type SortValue = "latest" | "price_desc" | "price_asc" | "deal_count";
-type SearchScope = "global" | "map";
+type DealType = "sale";
+type PropertyType = "apartment";
+type RightPanelTab = "results" | "selected" | "recommendations";
 
 const SORT_OPTIONS: Array<{ value: SortValue; label: string }> = [
   { value: "latest", label: "최신 거래순" },
@@ -101,6 +105,19 @@ const SORT_OPTIONS: Array<{ value: SortValue; label: string }> = [
   { value: "price_asc", label: "가격 낮은순" },
   { value: "deal_count", label: "최근 3개월 거래순" }
 ];
+
+const DEAL_TYPE_OPTIONS = [
+  { value: "sale", label: "매매", enabled: true },
+  { value: "jeonse", label: "전세", enabled: false },
+  { value: "wolse", label: "월세", enabled: false }
+] as const;
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: "apartment", label: "아파트", enabled: true },
+  { value: "officetel", label: "오피스텔", enabled: false },
+  { value: "villa", label: "빌라", enabled: false },
+  { value: "one_room", label: "원룸", enabled: false }
+] as const;
 
 const DEFAULT_BOUNDS: Bounds = {
   swLat: 37.0,
@@ -111,6 +128,7 @@ const DEFAULT_BOUNDS: Bounds = {
 
 const MAX_DB_INT = 2_147_483_647;
 const DEFAULT_SOURCE_LABEL = "국토교통부 실거래가 공개데이터";
+const FAVORITE_KEY = "saljip:favorites:v1";
 
 const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -136,6 +154,14 @@ function sanitizePriceInput(raw: string): string {
   const parsed = Number(digits);
   if (!Number.isFinite(parsed)) return "";
   return String(Math.min(MAX_DB_INT, Math.max(0, Math.trunc(parsed))));
+}
+
+function sanitizeIntInput(raw: string, max = MAX_DB_INT): string {
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed)) return "";
+  return String(Math.min(max, Math.max(0, Math.trunc(parsed))));
 }
 
 function normalizeRegionCode(raw: string): string {
@@ -166,10 +192,23 @@ function formatKstDate(input: string | null): string {
   return KST_DATE_FORMATTER.format(parsed);
 }
 
+function sanitizeRegionName(raw?: string | null): string {
+  const value = raw?.trim() ?? "";
+  if (!value) return "";
+  if (/^\d{5}$/.test(value)) return "";
+  if (/^지역\s*\d{5}$/.test(value)) return "";
+  return value;
+}
+
 function formatRegionLabel(item: SearchItem): string {
-  const regionParts = [item.region_name?.trim(), item.legal_dong?.trim()].filter(Boolean);
+  const regionParts = [sanitizeRegionName(item.region_name), item.legal_dong?.trim()].filter(Boolean);
   if (regionParts.length > 0) return regionParts.join(" ");
-  return item.region_code?.trim() ? `지역코드 ${item.region_code}` : "지역 정보 없음";
+  return "지역 정보 없음";
+}
+
+function formatRegionText(regionName?: string | null, legalDong?: string | null): string {
+  const regionParts = [sanitizeRegionName(regionName), legalDong?.trim()].filter(Boolean);
+  return regionParts.length > 0 ? regionParts.join(" ") : "지역 정보 없음";
 }
 
 function formatCardTitle(item: SearchItem): string {
@@ -204,17 +243,12 @@ function formatSignedPercent(value: number | null): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function formatQuickMonthlyEstimate(priceManwon: number | null): string {
-  if (priceManwon === null) return "-";
-  const estimate = estimateFinance({
-    priceManwon,
-    ltvPct: 60,
-    annualRatePct: 4.0,
-    years: 30,
-    repaymentType: "amortized"
-  });
-  if (!estimate) return "-";
-  return formatManwon(estimate.monthlyPaymentManwon);
+function formatBuildAge(buildYear: number | null | undefined): string {
+  if (!buildYear || Number.isNaN(buildYear)) return "-";
+  const age = new Date().getFullYear() - buildYear;
+  if (!Number.isFinite(age)) return `${buildYear}년`;
+  if (age < 0) return `${buildYear}년`;
+  return `${age}년차 (${buildYear}년)`;
 }
 
 export default function Explorer() {
@@ -224,11 +258,19 @@ export default function Explorer() {
   const [region, setRegion] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [maxAgeYears, setMaxAgeYears] = useState("");
+  const [minTotalUnits, setMinTotalUnits] = useState("");
+  const [maxTotalUnits, setMaxTotalUnits] = useState("");
+
   const [sort, setSort] = useState<SortValue>("latest");
+  const [dealType, setDealType] = useState<DealType>("sale");
+  const [propertyType, setPropertyType] = useState<PropertyType>("apartment");
   const [exactOnly, setExactOnly] = useState(false);
-  const [searchScope, setSearchScope] = useState<SearchScope>("global");
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("results");
+  const [selectedComplexId, setSelectedComplexId] = useState<string | null>(null);
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
-  const [hasPendingMapChange, setHasPendingMapChange] = useState(false);
+  const [mapFitRequestKey, setMapFitRequestKey] = useState(0);
   const [searchItems, setSearchItems] = useState<SearchItem[]>([]);
   const [mapItems, setMapItems] = useState<MapComplex[]>([]);
   const [loading, setLoading] = useState(false);
@@ -263,8 +305,10 @@ export default function Explorer() {
   const [trendLoading, setTrendLoading] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [selectedFavorited, setSelectedFavorited] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
+  const mapScopeSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -272,19 +316,21 @@ export default function Explorer() {
     setRegion(sp.get("region") ?? "");
     setMinPrice(sp.get("min_price") ?? "");
     setMaxPrice(sp.get("max_price") ?? "");
+    setMaxAgeYears(sp.get("max_age_years") ?? "");
+    setMinTotalUnits(sp.get("min_total_units") ?? "");
+    setMaxTotalUnits(sp.get("max_total_units") ?? "");
 
     const candidateSort = sp.get("sort");
     if (candidateSort && SORT_OPTIONS.some((s) => s.value === candidateSort)) {
       setSort(candidateSort as SortValue);
     }
+    const candidateDealType = sp.get("deal_type");
+    if (candidateDealType === "sale") setDealType("sale");
+    const candidatePropertyType = sp.get("property_type");
+    if (candidatePropertyType === "apartment") setPropertyType("apartment");
 
     const exactOnlyParam = sp.get("exact_only");
     setExactOnly(exactOnlyParam === "true");
-    const scopeParam = sp.get("scope");
-    if (scopeParam === "global" || scopeParam === "map") {
-      setSearchScope(scopeParam);
-    }
-
     const swLat = Number(sp.get("sw_lat"));
     const swLng = Number(sp.get("sw_lng"));
     const neLat = Number(sp.get("ne_lat"));
@@ -422,12 +468,17 @@ export default function Explorer() {
       region: normalizeRegionCode(region),
       minPrice: minPrice.trim(),
       maxPrice: maxPrice.trim(),
+      maxAgeYears: maxAgeYears.trim(),
+      minTotalUnits: minTotalUnits.trim(),
+      maxTotalUnits: maxTotalUnits.trim(),
       sort,
-      scope: searchScope,
+      dealType,
+      propertyType,
+      scope: "map" as const,
       exactOnly,
       bounds
     }),
-    [q, region, minPrice, maxPrice, sort, searchScope, exactOnly, bounds]
+    [q, region, minPrice, maxPrice, maxAgeYears, minTotalUnits, maxTotalUnits, sort, dealType, propertyType, exactOnly, bounds]
   );
 
   const syncUrl = useCallback(() => {
@@ -437,10 +488,18 @@ export default function Explorer() {
 
     const normalizedMinPrice = sanitizePriceInput(queryState.minPrice);
     const normalizedMaxPrice = sanitizePriceInput(queryState.maxPrice);
+    const normalizedMaxAgeYears = sanitizeIntInput(queryState.maxAgeYears, 100);
+    const normalizedMinTotalUnits = sanitizeIntInput(queryState.minTotalUnits);
+    const normalizedMaxTotalUnits = sanitizeIntInput(queryState.maxTotalUnits);
     if (normalizedMinPrice) sp.set("min_price", normalizedMinPrice);
     if (normalizedMaxPrice) sp.set("max_price", normalizedMaxPrice);
+    if (normalizedMaxAgeYears) sp.set("max_age_years", normalizedMaxAgeYears);
+    if (normalizedMinTotalUnits) sp.set("min_total_units", normalizedMinTotalUnits);
+    if (normalizedMaxTotalUnits) sp.set("max_total_units", normalizedMaxTotalUnits);
 
     sp.set("sort", queryState.sort);
+    sp.set("deal_type", queryState.dealType);
+    sp.set("property_type", queryState.propertyType);
     sp.set("scope", queryState.scope);
     if (queryState.exactOnly) sp.set("exact_only", "true");
     sp.set("sw_lat", String(queryState.bounds.swLat));
@@ -450,7 +509,8 @@ export default function Explorer() {
     router.replace(`/?${sp.toString()}`, { scroll: false });
   }, [queryState, router]);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(
+    async ({ autoFit = false, manualSearch = false }: { autoFit?: boolean; manualSearch?: boolean } = {}) => {
     if (!queryState.q) {
       setSearchItems([]);
       setMapItems([]);
@@ -469,15 +529,17 @@ export default function Explorer() {
     setRecommendationLoading(true);
     setError("");
 
-    try {
+      try {
       const common = new URLSearchParams();
       common.set("q", queryState.q);
       common.set("page", "1");
       common.set("size", "20");
       common.set("sort", queryState.sort);
+      common.set("deal_type", queryState.dealType);
+      common.set("property_type", queryState.propertyType);
       common.set("scope", queryState.scope);
       common.set("exact_only", String(queryState.exactOnly));
-      if (queryState.scope === "map") {
+      if (!manualSearch) {
         common.set("sw_lat", String(queryState.bounds.swLat));
         common.set("sw_lng", String(queryState.bounds.swLng));
         common.set("ne_lat", String(queryState.bounds.neLat));
@@ -487,21 +549,22 @@ export default function Explorer() {
 
       const normalizedMinPrice = sanitizePriceInput(queryState.minPrice);
       const normalizedMaxPrice = sanitizePriceInput(queryState.maxPrice);
+      const normalizedMaxAgeYears = sanitizeIntInput(queryState.maxAgeYears, 100);
+      const normalizedMinTotalUnits = sanitizeIntInput(queryState.minTotalUnits);
+      const normalizedMaxTotalUnits = sanitizeIntInput(queryState.maxTotalUnits);
       if (normalizedMinPrice) common.set("min_price", normalizedMinPrice);
       if (normalizedMaxPrice) common.set("max_price", normalizedMaxPrice);
-
-      const mapQuery = new URLSearchParams(common);
-      mapQuery.set("sw_lat", String(queryState.bounds.swLat));
-      mapQuery.set("sw_lng", String(queryState.bounds.swLng));
-      mapQuery.set("ne_lat", String(queryState.bounds.neLat));
-      mapQuery.set("ne_lng", String(queryState.bounds.neLng));
-      mapQuery.set("limit", "300");
+      if (normalizedMaxAgeYears) common.set("max_age_years", normalizedMaxAgeYears);
+      if (normalizedMinTotalUnits) common.set("min_total_units", normalizedMinTotalUnits);
+      if (normalizedMaxTotalUnits) common.set("max_total_units", normalizedMaxTotalUnits);
 
       const recommendationQuery = new URLSearchParams();
       recommendationQuery.set("q", queryState.q);
+      recommendationQuery.set("deal_type", queryState.dealType);
+      recommendationQuery.set("property_type", queryState.propertyType);
       recommendationQuery.set("scope", queryState.scope);
       recommendationQuery.set("exact_only", String(queryState.exactOnly));
-      if (queryState.scope === "map") {
+      if (!manualSearch) {
         recommendationQuery.set("sw_lat", String(queryState.bounds.swLat));
         recommendationQuery.set("sw_lng", String(queryState.bounds.swLng));
         recommendationQuery.set("ne_lat", String(queryState.bounds.neLat));
@@ -512,21 +575,61 @@ export default function Explorer() {
       if (normalizedMinPrice) recommendationQuery.set("min_price", normalizedMinPrice);
       if (normalizedMaxPrice) recommendationQuery.set("max_price", normalizedMaxPrice);
 
-      const [searchRes, mapRes, recommendationRes] = await Promise.all([
-        fetch(`/api/search?${common.toString()}`, { cache: "no-store" }),
-        fetch(`/api/map/complexes?${mapQuery.toString()}`, { cache: "no-store" }),
-        fetch(`/api/hub/recommendations?${recommendationQuery.toString()}`, { cache: "no-store" })
-      ]);
+      const searchResPromise = fetch(`/api/search?${common.toString()}`, { cache: "no-store" });
+      const recommendationResPromise = fetch(`/api/hub/recommendations?${recommendationQuery.toString()}`, {
+        cache: "no-store"
+      });
+
+      const mapResPromise = manualSearch
+        ? Promise.resolve(null)
+        : (() => {
+            const mapQuery = new URLSearchParams(common);
+            mapQuery.set("sw_lat", String(queryState.bounds.swLat));
+            mapQuery.set("sw_lng", String(queryState.bounds.swLng));
+            mapQuery.set("ne_lat", String(queryState.bounds.neLat));
+            mapQuery.set("ne_lng", String(queryState.bounds.neLng));
+            mapQuery.set("limit", "300");
+            return fetch(`/api/map/complexes?${mapQuery.toString()}`, { cache: "no-store" });
+          })();
+
+      const [searchRes, mapRes, recommendationRes] = await Promise.all([searchResPromise, mapResPromise, recommendationResPromise]);
 
       const searchJson = await searchRes.json();
-      const mapJson = await mapRes.json();
+      const mapJson = mapRes ? await mapRes.json() : null;
       const recommendationJson = await recommendationRes.json();
 
       if (!searchRes.ok || !searchJson.ok) throw new Error(searchJson.error ?? "Search API failed");
-      if (!mapRes.ok || !mapJson.ok) throw new Error(mapJson.error ?? "Map API failed");
+      if (mapRes && (!mapRes.ok || !mapJson?.ok)) throw new Error(mapJson?.error ?? "Map API failed");
 
       setSearchItems(searchJson.items ?? []);
-      setMapItems(mapJson.complexes ?? []);
+      let currentMapItems: MapComplex[] = [];
+      if (manualSearch) {
+        const mappedFromSearch: MapComplex[] = (Array.isArray(searchJson.items) ? searchJson.items : [])
+          .filter((item: SearchItem) => typeof item.lat === "number" && typeof item.lng === "number")
+          .slice(0, 300)
+          .map((item: SearchItem) => ({
+            id: Number(item.id),
+            aptId: `search-${item.id}`,
+            aptName: item.apt_name ?? `단지 #${item.id}`,
+            legalDong: item.legal_dong ?? "",
+            dealAmount: Number(item.deal_amount_manwon ?? 0),
+            dealDate: item.deal_date ?? null,
+            dealCount3m: undefined,
+            regionCode: item.region_code ?? undefined,
+            regionName: item.region_name ?? undefined,
+            buildYear: item.build_year ?? null,
+            totalUnits: item.total_units ?? null,
+            lat: Number(item.lat),
+            lng: Number(item.lng),
+            locationQuality: getLocationQuality(item),
+            locationSource: getLocationQuality(item)
+          }));
+        currentMapItems = mappedFromSearch;
+        setMapItems(currentMapItems);
+      } else {
+        currentMapItems = mapJson?.complexes ?? [];
+        setMapItems(currentMapItems);
+      }
       setUpdatedAt(searchJson.updatedAt ?? null);
       setTotalCount(typeof searchJson.totalCount === "number" ? searchJson.totalCount : (searchJson.items ?? []).length);
       setSourceLabel(typeof searchJson.sourceLabel === "string" && searchJson.sourceLabel.trim() ? searchJson.sourceLabel : DEFAULT_SOURCE_LABEL);
@@ -549,43 +652,68 @@ export default function Explorer() {
         search_term: queryState.q,
         region_code: queryState.region || undefined,
         results_count: Array.isArray(searchJson.items) ? searchJson.items.length : 0,
+        deal_type: queryState.dealType,
+        property_type: queryState.propertyType,
+        max_age_years: queryState.maxAgeYears || undefined,
+        min_total_units: queryState.minTotalUnits || undefined,
+        max_total_units: queryState.maxTotalUnits || undefined,
         search_scope: queryState.scope,
         exact_only: queryState.exactOnly,
         sort: queryState.sort
       });
-      setHasPendingMapChange(false);
+      if (autoFit && currentMapItems.length > 0) {
+        setMapFitRequestKey((prev) => prev + 1);
+      }
       syncUrl();
-    } catch (e) {
+      } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
       setSearchItems([]);
       setMapItems([]);
       setRecommendations([]);
       setTotalCount(0);
-    } finally {
+      } finally {
       setLoading(false);
       setRecommendationLoading(false);
-    }
-  }, [queryState, syncUrl]);
+      }
+    },
+    [queryState, syncUrl]
+  );
 
   const onMapBoundsChanged = useCallback((next: Bounds) => {
     setBounds(next);
-    if (initialized) setHasPendingMapChange(true);
-  }, [initialized]);
+  }, []);
 
   useEffect(() => {
     if (!initialized || bootstrapped) return;
-    void fetchAll();
+    void fetchAll({ autoFit: true });
     setBootstrapped(true);
   }, [initialized, bootstrapped, fetchAll]);
 
+  useEffect(() => {
+    if (!initialized || !bootstrapped) return;
+    if (!q.trim()) return;
+
+    if (mapScopeSearchTimerRef.current) {
+      clearTimeout(mapScopeSearchTimerRef.current);
+    }
+
+    mapScopeSearchTimerRef.current = setTimeout(() => {
+      setRightPanelTab("results");
+      void fetchAll();
+    }, 450);
+
+    return () => {
+      if (mapScopeSearchTimerRef.current) {
+        clearTimeout(mapScopeSearchTimerRef.current);
+        mapScopeSearchTimerRef.current = null;
+      }
+    };
+  }, [initialized, bootstrapped, q, bounds, fetchAll]);
+
   const runSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetchAll();
-  };
-
-  const quickRegion = (nextRegion: string) => {
-    setRegion(nextRegion);
-    if (!q.trim()) setQ("아파트");
+    setRightPanelTab("results");
+    await fetchAll({ autoFit: true, manualSearch: true });
   };
 
   const resetFilters = () => {
@@ -593,8 +721,15 @@ export default function Explorer() {
     setRegion("");
     setMinPrice("");
     setMaxPrice("");
+    setMaxAgeYears("");
+    setMinTotalUnits("");
+    setMaxTotalUnits("");
+
     setSort("latest");
+    setDealType("sale");
+    setPropertyType("apartment");
     setExactOnly(false);
+    setRightPanelTab("results");
     setSearchItems([]);
     setMapItems([]);
     setRecommendations([]);
@@ -633,12 +768,117 @@ export default function Explorer() {
     return null;
   }, [queryState.q, recommendations, searchItems]);
 
+  useEffect(() => {
+    if (searchItems.length === 0) {
+      setSelectedComplexId(null);
+      return;
+    }
+    if (!selectedComplexId || !searchItems.some((item) => item.id === selectedComplexId)) {
+      setSelectedComplexId(searchItems[0].id);
+    }
+  }, [searchItems, selectedComplexId]);
+
+  const selectedSearchItem = useMemo(() => {
+    if (!selectedComplexId) return null;
+    return searchItems.find((item) => item.id === selectedComplexId) ?? null;
+  }, [searchItems, selectedComplexId]);
+
+  const selectedMapItem = useMemo(() => {
+    if (!selectedComplexId) return null;
+    return mapItems.find((item) => String(item.id) === selectedComplexId) ?? null;
+  }, [mapItems, selectedComplexId]);
+
+  const selectedPreview = useMemo(() => {
+    if (selectedSearchItem) {
+      return {
+        id: selectedSearchItem.id,
+        aptName: formatCardTitle(selectedSearchItem),
+        regionLabel: formatRegionLabel(selectedSearchItem),
+        dealAmount: selectedSearchItem.deal_amount_manwon,
+        dealDate: selectedSearchItem.deal_date,
+        dealCount3m: null,
+        buildYear: selectedSearchItem.build_year,
+        totalUnits: selectedSearchItem.total_units,
+        locationQuality: getLocationQuality(selectedSearchItem)
+      };
+    }
+
+    if (selectedMapItem) {
+      return {
+        id: String(selectedMapItem.id),
+        aptName: selectedMapItem.aptName,
+        regionLabel: formatRegionText(selectedMapItem.regionName, selectedMapItem.legalDong),
+        dealAmount: selectedMapItem.dealAmount || null,
+        dealDate: selectedMapItem.dealDate ?? null,
+        dealCount3m: selectedMapItem.dealCount3m ?? null,
+        buildYear: selectedMapItem.buildYear ?? null,
+        totalUnits: selectedMapItem.totalUnits ?? null,
+        locationQuality: selectedMapItem.locationQuality ?? selectedMapItem.locationSource ?? "approx"
+      };
+    }
+
+    return null;
+  }, [selectedMapItem, selectedSearchItem]);
+
+  useEffect(() => {
+    if (!selectedPreview) {
+      setSelectedFavorited(false);
+      return;
+    }
+
+    const numericId = Number(selectedPreview.id);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      setSelectedFavorited(false);
+      return;
+    }
+
+    setSelectedFavorited(hasStoredId(FAVORITE_KEY, numericId));
+  }, [selectedPreview]);
+
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 14 }}>
       <header>
         <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>살집</h1>
-        <p style={{ color: "#475569" }}>검색·지도형 리스트/통계 기반 MVP</p>
+        <p style={{ color: "#475569" }}>서울·수도권 아파트 실거래가·시세를 지도에서 검색하세요</p>
       </header>
+
+      <section className="hub-phasea-section" aria-label="거래 유형과 매물 유형">
+        <div className="hub-chip-row">
+          <span className="hub-chip-label">거래 유형</span>
+          {DEAL_TYPE_OPTIONS.filter((option) => option.enabled).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`hub-chip-button ${dealType === "sale" && option.value === "sale" ? "hub-chip-active" : ""}`}
+              disabled={!option.enabled}
+              onClick={() => {
+                if (option.value === "sale") setDealType("sale");
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="hub-chip-row">
+          <span className="hub-chip-label">매물 유형</span>
+          {PROPERTY_TYPE_OPTIONS.filter((option) => option.enabled).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`hub-chip-button ${
+                propertyType === "apartment" && option.value === "apartment" ? "hub-chip-active" : ""
+              }`}
+              disabled={!option.enabled}
+              onClick={() => {
+                if (option.value === "apartment") setPropertyType("apartment");
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <form onSubmit={runSearch} className="explorer-filter-grid">
         <input
@@ -647,14 +887,6 @@ export default function Explorer() {
           placeholder="단지/브랜드/동 검색 (예: 래미안, 대치동)"
           className="ui-input"
           aria-label="검색어"
-        />
-        <input
-          value={region}
-          onChange={(e) => setRegion(e.target.value.replace(/[^0-9]/g, "").slice(0, 5))}
-          placeholder="지역코드 5자리 (예: 11680)"
-          className="ui-input"
-          inputMode="numeric"
-          aria-label="지역코드"
         />
         <input
           value={minPrice}
@@ -686,85 +918,272 @@ export default function Explorer() {
         </button>
       </form>
 
-      <p style={{ color: "#64748b", fontSize: 13 }}>
-        Enter 또는 검색 버튼으로 조회됩니다. 기본은 전국 검색이며, 필요 시 지도 범위 검색으로 전환할 수 있습니다.
-      </p>
-
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
           type="button"
-          className={`ui-button ${queryState.scope === "global" ? "" : "hub-button-muted"}`}
-          onClick={() => setSearchScope("global")}
+          className={`ui-button ${filterDrawerOpen ? "" : "hub-button-muted"}`}
+          onClick={() => setFilterDrawerOpen((prev) => !prev)}
         >
-          전국 검색
+          {filterDrawerOpen ? "필터 닫기" : "필터 열기"}
         </button>
-        <button
-          type="button"
-          className={`ui-button ${queryState.scope === "map" ? "" : "hub-button-muted"}`}
-          onClick={() => setSearchScope("map")}
-        >
-          지도 내 검색
-        </button>
-        {hasPendingMapChange && (
-          <button
-            type="button"
-            className="ui-button"
-            onClick={() => {
-              setSearchScope("map");
-              void fetchAll();
-            }}
-          >
-            이 지도에서 검색
-          </button>
-        )}
       </div>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#334155", fontSize: 14 }}>
-        <input type="checkbox" checked={exactOnly} onChange={(e) => setExactOnly(e.target.checked)} />
-        정확 좌표만 보기 (exact)
-      </label>
+      {filterDrawerOpen && (
+        <section className="hub-filter-drawer" aria-label="확장 필터">
+          <div className="hub-filter-grid">
+            <label className="hub-filter-item">
+              입주연차 최대
+              <input
+                value={maxAgeYears}
+                onChange={(e) => setMaxAgeYears(e.target.value)}
+                onBlur={(e) => setMaxAgeYears(sanitizeIntInput(e.target.value, 100))}
+                placeholder="예: 15 (년차 이하)"
+                className="ui-input"
+                inputMode="numeric"
+              />
+            </label>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#475569", fontSize: 14 }}>
-        <span>출처: {sourceLabel}</span>
-        <span>최종 업데이트: {formatKstDateTime(updatedAt)}</span>
-        <span>검색 범위: {queryState.scope === "map" ? "현재 지도" : "전국"}</span>
-        <span>리스트 {totalCount}건 · 지도 {mapItems.length}건</span>
-      </div>
+            <label className="hub-filter-item">
+              세대수 최소
+              <input
+                value={minTotalUnits}
+                onChange={(e) => setMinTotalUnits(e.target.value)}
+                onBlur={(e) => setMinTotalUnits(sanitizeIntInput(e.target.value))}
+                placeholder="예: 500"
+                className="ui-input"
+                inputMode="numeric"
+              />
+            </label>
+
+            <label className="hub-filter-item">
+              세대수 최대
+              <input
+                value={maxTotalUnits}
+                onChange={(e) => setMaxTotalUnits(e.target.value)}
+                onBlur={(e) => setMaxTotalUnits(sanitizeIntInput(e.target.value))}
+                placeholder="예: 3000"
+                className="ui-input"
+                inputMode="numeric"
+              />
+            </label>
+
+
+            <label
+              className="hub-filter-item"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
+            >
+              정확 좌표만 보기
+              <input type="checkbox" checked={exactOnly} onChange={(e) => setExactOnly(e.target.checked)} />
+            </label>
+          </div>
+        </section>
+      )}
 
       {error && <div className="ui-error">오류: {error}</div>}
 
       <section className="explorer-grid">
         <div>
-          <HomeMap complexes={mapItems} onBoundsChanged={onMapBoundsChanged} />
+          <HomeMap
+            complexes={mapItems}
+            onBoundsChanged={onMapBoundsChanged}
+            fitRequestKey={mapFitRequestKey}
+            onMarkerSelected={(complex) => {
+              router.push(`/complexes/${complex.id}`);
+            }}
+          />
         </div>
-        <aside style={{ display: "grid", gap: 8, alignContent: "start" }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>검색 결과</h2>
-          {!loading && !error && searchItems.length === 0 && (
-            <div style={{ color: "#64748b", border: "1px dashed #cbd5e1", borderRadius: 10, padding: 12, display: "grid", gap: 10 }}>
-              <span>조건에 맞는 단지가 없습니다.</span>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" className="ui-button" onClick={() => quickRegion("11680")}>강남구 빠른 적용</button>
-                <button type="button" className="ui-button" onClick={() => quickRegion("11710")}>송파구 빠른 적용</button>
-                <button type="button" className="ui-button" onClick={resetFilters}>조건 초기화</button>
-              </div>
+        <aside className="hub-right-panel">
+          <div className="hub-right-panel-shell">
+            <div className="hub-right-panel-tabs" role="tablist" aria-label="우측 패널 탭">
+              <button
+                type="button"
+                className={`hub-right-tab ${rightPanelTab === "results" ? "hub-right-tab-active" : ""}`}
+                onClick={() => setRightPanelTab("results")}
+              >
+                검색 결과
+              </button>
+              <button
+                type="button"
+                className={`hub-right-tab ${rightPanelTab === "selected" ? "hub-right-tab-active" : ""}`}
+                onClick={() => setRightPanelTab("selected")}
+              >
+                선택 단지
+              </button>
+              <button
+                type="button"
+                className={`hub-right-tab ${rightPanelTab === "recommendations" ? "hub-right-tab-active" : ""}`}
+                onClick={() => setRightPanelTab("recommendations")}
+              >
+                추천
+              </button>
             </div>
-          )}
-          {searchItems.map((item) => (
-            <Link key={item.id} href={`/complexes/${item.id}`} className="ui-card-link">
-              <div>
-                <p style={{ fontWeight: 700 }}>{formatCardTitle(item)}</p>
-                <p style={{ color: "#64748b", fontSize: 14 }}>{formatRegionLabel(item)}</p>
-                {getLocationQuality(item) === "approx" && <span className="ui-approx-badge">근사 위치</span>}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ color: "#64748b", fontSize: 13 }}>최근 거래가</p>
-                <p style={{ fontWeight: 700 }}>{formatManwon(item.deal_amount_manwon)}</p>
-                <p style={{ color: "#64748b", fontSize: 13 }}>최근 거래일 {formatKstDate(item.deal_date)}</p>
-              </div>
-            </Link>
-          ))}
+
+            <div className="hub-right-panel-body">
+              {rightPanelTab === "results" && (
+                <>
+                  {!loading && !error && searchItems.length === 0 && (
+                    <div
+                      style={{
+                        color: "#64748b",
+                        border: "1px dashed #cbd5e1",
+                        borderRadius: 10,
+                        padding: 12,
+                        display: "grid",
+                        gap: 10
+                      }}
+                    >
+                      <span>조건에 맞는 단지가 없습니다.</span>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" className="ui-button" onClick={resetFilters}>
+                          조건 초기화
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {searchItems.map((item) => {
+                    const isSelected = selectedComplexId === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`hub-panel-item ${isSelected ? "hub-panel-item-selected" : ""}`}
+                        onClick={() => {
+                          setSelectedComplexId(item.id);
+                          setRightPanelTab("selected");
+                        }}
+                      >
+                        <div style={{ textAlign: "left" }}>
+                          <p style={{ fontWeight: 700 }}>{formatCardTitle(item)}</p>
+                          <p style={{ color: "#64748b", fontSize: 13 }}>{formatRegionLabel(item)}</p>
+                          {getLocationQuality(item) === "approx" && <span className="ui-approx-badge">근사 위치</span>}
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontWeight: 700 }}>{formatManwon(item.deal_amount_manwon)}</p>
+                          <p className="hub-trend-meta">{formatKstDate(item.deal_date)}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {rightPanelTab === "selected" && (
+                <>
+                  {!selectedPreview && (
+                    <p style={{ color: "#64748b", fontSize: 14 }}>검색 결과 또는 지도에서 단지를 선택해 주세요.</p>
+                  )}
+                  {selectedPreview && (
+                    <article className="hub-selected-card">
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <p style={{ fontWeight: 800, fontSize: 18 }}>{selectedPreview.aptName}</p>
+                        <p style={{ color: "#64748b", fontSize: 13 }}>{selectedPreview.regionLabel}</p>
+                        {selectedPreview.locationQuality === "approx" && <span className="ui-approx-badge">근사 위치</span>}
+                      </div>
+
+                      <div className="hub-selected-metrics">
+                        <div className="hub-selected-metric">
+                          <p className="hub-trend-meta">최근 거래가</p>
+                          <p style={{ fontWeight: 800 }}>{formatManwon(selectedPreview.dealAmount)}</p>
+                        </div>
+                        <div className="hub-selected-metric">
+                          <p className="hub-trend-meta">최근 거래일</p>
+                          <p style={{ fontWeight: 800 }}>{formatKstDate(selectedPreview.dealDate)}</p>
+                        </div>
+                        <div className="hub-selected-metric">
+                          <p className="hub-trend-meta">입주연차</p>
+                          <p style={{ fontWeight: 800 }}>{formatBuildAge(selectedPreview.buildYear)}</p>
+                        </div>
+                        <div className="hub-selected-metric">
+                          <p className="hub-trend-meta">세대수</p>
+                          <p style={{ fontWeight: 800 }}>
+                            {selectedPreview.totalUnits ? `${selectedPreview.totalUnits.toLocaleString()}세대` : "-"}
+                          </p>
+                        </div>
+                        <div className="hub-selected-metric">
+                          <p className="hub-trend-meta">최근 3개월 거래</p>
+                          <p style={{ fontWeight: 800 }}>
+                            {selectedPreview.dealCount3m === null ? "-" : `${selectedPreview.dealCount3m.toLocaleString()}건`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="ui-button"
+                          onClick={() => {
+                            const numericId = Number(selectedPreview.id);
+                            if (!Number.isInteger(numericId) || numericId <= 0) return;
+                            const next = toggleStoredId(FAVORITE_KEY, numericId);
+                            setSelectedFavorited(next);
+                            trackEvent("cta_click", {
+                              action: next ? "favorite" : "unfavorite",
+                              complex_id: numericId,
+                              source: "hub_selected_panel"
+                            });
+                          }}
+                        >
+                          {selectedFavorited ? "관심해제" : "관심등록"}
+                        </button>
+                        <Link href={`/complexes/${selectedPreview.id}`} className="ui-button">
+                          단지 상세 보기
+                        </Link>
+                      </div>
+                    </article>
+                  )}
+                </>
+              )}
+
+              {rightPanelTab === "recommendations" && (
+                <>
+                  {!recommendationLoading && recommendations.length === 0 && (
+                    <p style={{ color: "#64748b", fontSize: 14 }}>표시할 추천 단지가 없습니다.</p>
+                  )}
+                  {recommendationLoading && <p style={{ color: "#64748b", fontSize: 14 }}>불러오는 중...</p>}
+                  {!recommendationLoading &&
+                    recommendations.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="hub-panel-item"
+                        onClick={() => {
+                          setSelectedComplexId(item.id);
+                          setRightPanelTab("selected");
+                        }}
+                      >
+                        <div style={{ textAlign: "left" }}>
+                          <p className="hub-text-ellipsis-2" style={{ fontWeight: 700 }}>
+                            {item.aptName || `단지 #${item.id}`}
+                          </p>
+                          <p className="hub-trend-meta">
+                            {formatRegionText(item.regionName, item.legalDong)}
+                          </p>
+                          <div className="hub-recommendation-tags">
+                            {item.reasonLabels.slice(0, 2).map((label) => (
+                              <span key={`${item.id}-${label}`} className="hub-recommendation-tag">
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontWeight: 700 }}>{formatManwon(item.dealAmountManwon)}</p>
+                          <p className="hub-trend-meta">{formatKstDate(item.dealDate)}</p>
+                        </div>
+                      </button>
+                    ))}
+                </>
+              )}
+            </div>
+          </div>
         </aside>
       </section>
+
+      <p style={{ color: "#64748b", fontSize: 12 }}>
+        출처: {sourceLabel} · 업데이트: {formatKstDateTime(updatedAt)} · 리스트 {totalCount.toLocaleString()}건 · 지도{" "}
+        {mapItems.length.toLocaleString()}건
+      </p>
 
       <section className="hub-kpi-grid" aria-label="허브 KPI">
         <article className="hub-kpi-card">
@@ -795,7 +1214,7 @@ export default function Explorer() {
                   <div>
                     <p style={{ fontWeight: 700 }}>{item.aptName}</p>
                     <p className="hub-trend-meta">
-                      {item.regionName} {item.legalDong}
+                      {formatRegionText(item.regionName, item.legalDong)}
                     </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -874,7 +1293,7 @@ export default function Explorer() {
                   <div>
                     <p style={{ fontWeight: 700 }}>{deal.aptName}</p>
                     <p className="hub-trend-meta">
-                      {deal.regionName} {deal.legalDong || `지역 ${deal.regionCode}`}
+                      {formatRegionText(deal.regionName, deal.legalDong)}
                     </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -923,12 +1342,14 @@ export default function Explorer() {
             {recommendations.map((item) => (
               <Link key={item.id} href={`/complexes/${item.id}`} className="hub-trend-item">
                 <div>
-                  <p style={{ fontWeight: 700 }}>{item.aptName || `단지 #${item.id}`}</p>
+                  <p className="hub-text-ellipsis-2" style={{ fontWeight: 700 }}>
+                    {item.aptName || `단지 #${item.id}`}
+                  </p>
                   <p className="hub-trend-meta">
-                    {item.regionName} {item.legalDong || `지역 ${item.regionCode}`}
+                    {formatRegionText(item.regionName, item.legalDong)}
                   </p>
                   <div className="hub-recommendation-tags">
-                    {item.reasonLabels.map((label) => (
+                    {item.reasonLabels.slice(0, 2).map((label) => (
                       <span key={`${item.id}-${label}`} className="hub-recommendation-tag">
                         {label}
                       </span>
@@ -939,32 +1360,9 @@ export default function Explorer() {
                 <div style={{ textAlign: "right" }}>
                   <p style={{ fontWeight: 700 }}>{formatManwon(item.dealAmountManwon)}</p>
                   <p className="hub-trend-meta">{formatKstDate(item.dealDate)}</p>
-                  <p className="hub-trend-meta">최근 3개월 {item.dealCount3m.toLocaleString()}건</p>
-                  <p className="hub-trend-meta">월 상환액 예상 {formatQuickMonthlyEstimate(item.dealAmountManwon)}</p>
                 </div>
               </Link>
             ))}
-          </div>
-        )}
-
-        {recommendations.length > 0 && (
-          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-            <Link
-              href={`/complexes/${recommendations[0].id}#finance-estimator`}
-              className="ui-button"
-              onClick={() => trackEvent("finance_cta_click", { cta: "from_hub_recommendation" })}
-            >
-              상환 계산 더보기
-            </Link>
-            <button
-              type="button"
-              className="ui-button hub-button-muted"
-              disabled
-              title="준비중"
-              onClick={() => trackEvent("finance_cta_click", { cta: "loan_consult_coming_soon_from_hub" })}
-            >
-              대출 상담 준비중
-            </button>
           </div>
         )}
 

@@ -2,27 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
+import { hasStoredId, toggleStoredId } from "@/lib/clientPrefs";
 
 interface DetailActionBarProps {
   complexId: number;
 }
 
-const ACTIONS = [
-  { key: "favorite", label: "관심등록 (준비중)" },
-  { key: "alert", label: "알림받기 (준비중)" },
-  { key: "inquiry", label: "문의하기 (준비중)" }
-] as const;
+const FAVORITE_KEY = "saljip:favorites:v1";
+const ALERT_KEY = "saljip:alerts:v1";
 
 export default function DetailActionBar({ complexId }: DetailActionBarProps) {
   const [pending, setPending] = useState<string | null>(null);
+  const [favorited, setFavorited] = useState(false);
+  const [alertEnabled, setAlertEnabled] = useState(false);
 
   useEffect(() => {
     trackEvent("view_complex_detail", {
       complex_id: complexId
     });
+    setFavorited(hasStoredId(FAVORITE_KEY, complexId));
+    setAlertEnabled(hasStoredId(ALERT_KEY, complexId));
   }, [complexId]);
 
-  async function clickAction(action: (typeof ACTIONS)[number]["key"]) {
+  async function clickAction(action: "favorite" | "alert") {
     setPending(action);
     trackEvent("cta_click", {
       action,
@@ -46,19 +48,32 @@ export default function DetailActionBar({ complexId }: DetailActionBarProps) {
 
   return (
     <section className="detail-cta-grid">
-      {ACTIONS.map((action) => (
-        <button
-          key={action.key}
-          type="button"
-          className="ui-button detail-cta-button"
-          onClick={() => {
-            void clickAction(action.key);
-          }}
-          disabled={pending !== null}
-        >
-          {pending === action.key ? "기록중..." : action.label}
-        </button>
-      ))}
+      <button
+        type="button"
+        className="ui-button detail-cta-button"
+        onClick={() => {
+          const next = toggleStoredId(FAVORITE_KEY, complexId);
+          setFavorited(next);
+          void clickAction("favorite");
+        }}
+        disabled={pending !== null}
+      >
+        {pending === "favorite" ? "기록중..." : favorited ? "관심해제" : "관심등록"}
+      </button>
+
+      <button
+        type="button"
+        className="ui-button detail-cta-button"
+        onClick={() => {
+          const next = toggleStoredId(ALERT_KEY, complexId);
+          setAlertEnabled(next);
+          void clickAction("alert");
+        }}
+        disabled={pending !== null}
+      >
+        {pending === "alert" ? "기록중..." : alertEnabled ? "알림해제" : "알림받기"}
+      </button>
+
     </section>
   );
 }
