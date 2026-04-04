@@ -16,13 +16,37 @@ type Bounds = {
 interface HomeMapProps {
   complexes: MapComplex[];
   onBoundsChanged?: (bounds: Bounds) => void;
+  onMarkerSelected?: (complex: MapComplex) => void;
+  fitRequestKey?: number;
 }
 
-export default function HomeMap({ complexes, onBoundsChanged }: HomeMapProps) {
+function getLocationQuality(complex: MapComplex): "exact" | "approx" {
+  return complex.locationQuality ?? complex.locationSource ?? "approx";
+}
+
+export default function HomeMap({ complexes, onBoundsChanged, onMarkerSelected, fitRequestKey }: HomeMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<InstanceType<typeof window.kakao.maps.Map> | null>(null);
-  const markersRef = useRef<Array<{ setMap: (map: unknown | null) => void }>>([]);
+  const markerEntriesRef = useRef<
+    Array<{
+      marker: { setMap: (map: unknown | null) => void };
+    }>
+  >([]);
   const [error, setError] = useState("");
+  const [zoomLevel, setZoomLevel] = useState(7);
+  const complexesRef = useRef<MapComplex[]>(complexes);
+
+  function readMapLevel(map: unknown): number {
+    if (typeof map === "object" && map !== null && "getLevel" in map) {
+      const value = (map as { getLevel: () => number }).getLevel();
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+    }
+    return 7;
+  }
+
+  useEffect(() => {
+    complexesRef.current = complexes;
+  }, [complexes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +59,7 @@ export default function HomeMap({ complexes, onBoundsChanged }: HomeMapProps) {
         const center = new window.kakao.maps.LatLng(37.5665, 126.978);
         const map = new window.kakao.maps.Map(containerRef.current, { center, level: 7 });
         mapRef.current = map;
+        setZoomLevel(readMapLevel(map));
 
         const emitBounds = () => {
           if (!onBoundsChanged) return;
@@ -51,6 +76,9 @@ export default function HomeMap({ complexes, onBoundsChanged }: HomeMapProps) {
 
         emitBounds();
         window.kakao.maps.event.addListener(map, "idle", emitBounds);
+        window.kakao.maps.event.addListener(map, "zoom_changed", () => {
+          setZoomLevel(readMapLevel(map));
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown map error");
       }
@@ -66,17 +94,48 @@ export default function HomeMap({ complexes, onBoundsChanged }: HomeMapProps) {
     const map = mapRef.current;
     if (!map) return;
 
-    for (const marker of markersRef.current) {
-      marker.setMap(null);
+    for (const entry of markerEntriesRef.current) {
+      entry.marker.setMap(null);
     }
-    markersRef.current = [];
+    markerEntriesRef.current = [];
 
-    for (const c of complexes.slice(0, 300)) {
+    const markerCap = zoomLevel >= 8 ? 80 : zoomLevel >= 6 ? 140 : 240;
+    for (const c of complexes.slice(0, markerCap)) {
+      const locationQuality = getLocationQuality(c);
       const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
-      const marker = new window.kakao.maps.Marker({ map, position: pos, title: `${c.aptName} ${c.dealAmount}` });
-      markersRef.current.push(marker);
+      const marker = new window.kakao.maps.Marker({
+        map,
+        position: pos,
+        title: `${c.aptName} (${locationQuality === "exact" ? "정확 좌표" : "근사 위치"})`
+      });
+
+      window.kakao.maps.event.addListener(marker, "click", () => {
+        onMarkerSelected?.(c);
+      });
+
+      markerEntriesRef.current.push({ marker });
     }
-  }, [complexes]);
+  }, [complexes, onMarkerSelected, zoomLevel]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const targets = complexesRef.current;
+    if (!targets.length) return;
+
+    if (targets.length === 1) {
+      const only = targets[0];
+      map.setLevel(4);
+      map.panTo(new window.kakao.maps.LatLng(only.lat, only.lng));
+      return;
+    }
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    for (const c of targets.slice(0, 120)) {
+      bounds.extend(new window.kakao.maps.LatLng(c.lat, c.lng));
+    }
+    map.setBounds(bounds);
+  }, [fitRequestKey]);
 
   return (
     <section style={{ display: "grid", gap: 12 }}>

@@ -9,10 +9,17 @@
         };
         Map: new (container: HTMLElement, options: { center: unknown; level: number }) => {
           setCenter: (latLng: unknown) => void;
+          panTo: (latLng: unknown) => void;
+          setLevel: (level: number) => void;
+          setBounds: (bounds: unknown) => void;
+          getLevel: () => number;
           getBounds: () => {
             getSouthWest: () => { getLat: () => number; getLng: () => number };
             getNorthEast: () => { getLat: () => number; getLng: () => number };
           };
+        };
+        LatLngBounds: new () => {
+          extend: (latLng: unknown) => void;
         };
         Marker: new (options: { map: unknown; position: unknown; title?: string }) => {
           setMap: (map: unknown | null) => void;
