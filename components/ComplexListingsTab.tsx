@@ -56,9 +56,11 @@ export default function ComplexListingsTab({ complexId }: ComplexListingsTabProp
         </p>
       )}
 
-      <p style={{ color: "#64748b", fontSize: 12, marginTop: 10 }}>
-        API: <code>/api/complexes/{complexId}/listings</code> · 상태: {data?.integrationStatus ?? "pending"} · 어댑터: {data?.adapterKey ?? "placeholder"} · 계약: {data?.adapterContractVersion ?? "v1"} · 업데이트: {data?.updatedAt ?? "-"}
-      </p>
+      {!loading && !error && (data?.listings?.length ?? 0) > 0 && (
+        <p style={{ color: "#64748b", fontSize: 12, marginTop: 10 }}>
+          최근 업데이트: {data?.updatedAt ?? "-"}
+        </p>
+      )}
     </section>
   );
 }

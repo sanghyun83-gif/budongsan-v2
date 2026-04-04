@@ -12,5 +12,5 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default function Home() {
-  return <Explorer />;
+  return <Explorer minimalHome />;
 }

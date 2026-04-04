@@ -12,26 +12,7 @@ interface PageProps {
   searchParams: Promise<{ tab?: string }>;
 }
 
-type DetailTab = "price" | "listings" | "info" | "story";
-
-type Batch1Target = {
-  id: number;
-  aptName: string;
-  focus: string;
-};
-
-const BATCH1_TARGETS: Batch1Target[] = [
-  { id: 16919, aptName: "해링턴플레이스노원센트럴", focus: "메타/첫문단/내부링크 풀셋" },
-  { id: 26429, aptName: "판교밸리제일풍경채", focus: "메타 CTR 개선" },
-  { id: 39098, aptName: "동탄역포레너스", focus: "첫문단 숫자 근거 보강" },
-  { id: 736, aptName: "파크하비오", focus: "내부링크 10개 이상 보강" },
-  { id: 39018, aptName: "힐스테이트동탄", focus: "메타 + 내부링크 동시 개선" },
-  { id: 29326, aptName: "매교역푸르지오SKVIEW", focus: "브랜드 키워드 반영" },
-  { id: 25319, aptName: "에스케이북한산시티", focus: "지역 키워드 반영" },
-  { id: 38832, aptName: "에스케이뷰파크", focus: "첫문단 최신성 문구 반영" },
-  { id: 39250, aptName: "동탄역센트럴푸르지오", focus: "메타 길이 최적화" },
-  { id: 39185, aptName: "동탄2신도시호반베르디움22단지", focus: "내부링크/관련단지 연결 보강" }
-];
+type DetailTab = "price" | "listings" | "info";
 const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   year: "numeric",
@@ -48,7 +29,7 @@ function buildComplexTitle(aptName: string): string {
 }
 
 function normalizeDetailTab(raw?: string): DetailTab {
-  if (raw === "listings" || raw === "info" || raw === "story") return raw;
+  if (raw === "listings" || raw === "info") return raw;
   return "price";
 }
 
@@ -69,18 +50,6 @@ function buildComplexSummarySnippet(
   return `${legalDong} ${aptName} 아파트의 매매·전세·월세 실거래가와 시세를 제공합니다. 최근 거래일은 ${formatLatestDealDate(latestDealDate)}, 최근 거래가는 ${formatManwon(latestDealAmount)}, 최근 3개월 거래량은 ${dealCount3m}건입니다.`;
 }
 
-function getBatch1Target(complexId: number): Batch1Target | null {
-  return BATCH1_TARGETS.find((item) => item.id === complexId) ?? null;
-}
-
-function buildFocusSentence(target: Batch1Target | null): string {
-  if (!target) return "";
-  return `이번 1차 SEO 반영 대상 단지로, ${target.focus} 작업을 우선 적용합니다.`;
-}
-
-function getBatch1RelatedTargets(complexId: number): Batch1Target[] {
-  return BATCH1_TARGETS.filter((item) => item.id !== complexId).slice(0, 9);
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -90,7 +59,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const complex = await getComplexSummaryById(complexId);
   if (!complex) return {};
 
-  const target = getBatch1Target(complexId);
   const title = `${buildComplexTitle(complex.aptName)} | ${complex.legalDong} 매매·전세·월세`;
   const summarySnippet = buildComplexSummarySnippet(
     complex.legalDong,
@@ -99,16 +67,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     complex.latestDealAmount,
     complex.dealCount3m
   );
-  const description = `${summarySnippet}${target ? ` ${buildFocusSentence(target)}` : ""}`;
   const socialTitle = `${buildComplexTitle(complex.aptName)} | ${complex.legalDong} 아파트 | 살집`;
 
   return {
     title,
-    description,
+    description: summarySnippet,
     alternates: { canonical: `https://saljip.kr/complexes/${id}` },
     openGraph: {
       title: socialTitle,
-      description,
+      description: summarySnippet,
       url: `https://saljip.kr/complexes/${id}`,
       type: "website",
       siteName: "살집",
@@ -118,7 +85,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     twitter: {
       card: "summary_large_image",
       title: socialTitle,
-      description,
+      description: summarySnippet,
       images: ["https://saljip.kr/og-default.png"]
     }
   };
@@ -168,7 +135,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
   if (!complex) notFound();
 
   const locationQuality = complex.locationQuality ?? complex.locationSource ?? "approx";
-  const target = getBatch1Target(complexId);
   const summarySnippet = buildComplexSummarySnippet(
     complex.legalDong,
     complex.aptName,
@@ -176,16 +142,13 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
     complex.latestDealAmount,
     complex.dealCount3m
   );
-  const focusSentence = buildFocusSentence(target);
-  const relatedTargets = getBatch1RelatedTargets(complexId);
 
   const deals = activeTab === "price" ? await getComplexDealsById(complexId, 1, 20) : [];
 
   const tabItems: Array<{ key: DetailTab; label: string }> = [
     { key: "price", label: "시세·실거래" },
     { key: "listings", label: "매물" },
-    { key: "info", label: "단지정보" },
-    { key: "story", label: "이야기" }
+    { key: "info", label: "단지정보" }
   ];
 
   return (
@@ -204,7 +167,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         </div>
         <p style={{ color: "#64748b", marginTop: 4 }}>데이터 기준일: API 조회 시점 기준</p>
         <p style={{ color: "#0f172a", marginTop: 10, lineHeight: 1.55 }}>{summarySnippet}</p>
-        {focusSentence && <p style={{ color: "#334155", marginTop: 8 }}>{focusSentence}</p>}
       </section>
 
       <DetailActionBar complexId={complexId} />
@@ -294,33 +256,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
             defaultPriceManwon={complex.latestDealAmount}
             noSnippet
           />
-
-          {relatedTargets.length > 0 && (
-            <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>관련 단지 (Batch 1)</h2>
-              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
-                내부링크 강화 대상 단지입니다. 유사 수요/브랜드/권역 비교 탐색에 활용해 주세요.
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 8 }}>
-                {relatedTargets.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/complexes/${item.id}`}
-                    style={{
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 10,
-                      padding: 10,
-                      textDecoration: "none",
-                      color: "inherit"
-                    }}
-                  >
-                    <p style={{ fontWeight: 700 }}>{item.aptName}</p>
-                    <p style={{ color: "#64748b", fontSize: 12 }}>{item.focus}</p>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
         </>
       )}
 
@@ -342,12 +277,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         </>
       )}
 
-      {activeTab === "story" && (
-        <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>이야기</h2>
-          <p style={{ color: "#64748b" }}>커뮤니티/리뷰 기능은 현재 스코프에서 보류되어 있습니다.</p>
-        </section>
-      )}
     </main>
   );
 }

@@ -48,15 +48,22 @@ export function buildSearchMatcher(query: string): SearchMatcher {
 
     for (const group of ALIAS_GROUPS) {
       for (const variant of group.variants) {
-        if (!qNorm.includes(variant)) continue;
+        const normalizedVariant = normalize(variant);
+        if (!normalizedVariant || !qNorm.includes(normalizedVariant)) continue;
+
         for (const replacement of group.variants) {
-          patternTerms.push(qNorm.replace(variant, replacement));
+          const normalizedReplacement = normalize(replacement);
+          if (!normalizedReplacement) continue;
+          patternTerms.push(qNorm.replace(normalizedVariant, normalizedReplacement));
         }
 
         const leftOvers = qNorm
-          .split(variant)
+          .split(normalizedVariant)
           .map((chunk) => chunk.trim())
           .filter((chunk) => chunk.length >= 2);
+
+        // 띄어쓰기/순서가 달라도 브랜드+지역 핵심 토큰이 모두 포함되도록 강제
+        andTokens.push(normalizedVariant);
         andTokens.push(...leftOvers);
       }
     }

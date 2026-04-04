@@ -16,6 +16,7 @@ type Bounds = {
 
 interface HomeMapProps {
   complexes: MapComplex[];
+  hoveredComplexId?: number | null;
   onBoundsChanged?: (bounds: Bounds) => void;
   onMarkerSelected?: (complex: MapComplex) => void;
   fitRequestKey?: number;
@@ -25,12 +26,15 @@ function getLocationQuality(complex: MapComplex): "exact" | "approx" {
   return complex.locationQuality ?? complex.locationSource ?? "approx";
 }
 
-export default function HomeMap({ complexes, onBoundsChanged, onMarkerSelected, fitRequestKey }: HomeMapProps) {
+export default function HomeMap({ complexes, hoveredComplexId, onBoundsChanged, onMarkerSelected, fitRequestKey }: HomeMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<InstanceType<typeof window.kakao.maps.Map> | null>(null);
   const markerEntriesRef = useRef<
     Array<{
-      marker: { setMap: (map: unknown | null) => void };
+      id: number;
+      marker: {
+        setMap: (map: unknown | null) => void;
+      };
     }>
   >([]);
   const [error, setError] = useState("");
@@ -119,7 +123,7 @@ export default function HomeMap({ complexes, onBoundsChanged, onMarkerSelected, 
         onMarkerSelected?.(c);
       });
 
-      markerEntriesRef.current.push({ marker });
+      markerEntriesRef.current.push({ id: c.id, marker });
     }
   }, [complexes, onMarkerSelected, zoomLevel]);
 
@@ -142,6 +146,17 @@ export default function HomeMap({ complexes, onBoundsChanged, onMarkerSelected, 
     }
     map.setBounds(bounds);
   }, [fitRequestKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!hoveredComplexId) return;
+
+    const target = complexesRef.current.find((item) => item.id === hoveredComplexId);
+    if (!target) return;
+
+    map.panTo(new window.kakao.maps.LatLng(target.lat, target.lng));
+  }, [hoveredComplexId]);
 
   return (
     <section style={{ display: "grid", gap: 12 }}>

@@ -63,9 +63,7 @@ export default function FinanceEstimateCard({
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sourceLabel, setSourceLabel] = useState("국토교통부 실거래가 공개데이터");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [disclaimer, setDisclaimer] = useState("본 계산은 참고용이며 실제 금융 조건과 다를 수 있습니다.");
   const [estimateFromApi, setEstimateFromApi] = useState<FinanceApiResponse["estimate"]>(undefined);
 
   useEffect(() => {
@@ -119,9 +117,7 @@ export default function FinanceEstimateCard({
           throw new Error(json.error ?? "Finance estimate API failed");
         }
         setEstimateFromApi(json.estimate);
-        setSourceLabel(json.sourceLabel ?? "국토교통부 실거래가 공개데이터");
         setUpdatedAt(json.updatedAt ?? null);
-        setDisclaimer(json.disclaimer ?? "본 계산은 참고용이며 실제 금융 조건과 다를 수 있습니다.");
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
         setError(e instanceof Error ? e.message : "계산 중 오류가 발생했습니다.");
@@ -142,12 +138,12 @@ export default function FinanceEstimateCard({
     <section
       className={className ?? "hub-finance-card"}
       id="finance-estimator"
-      aria-label="금융 연계 계산"
+      aria-label="월 상환액 추정"
       {...(noSnippet ? { "data-nosnippet": "" } : {})}
     >
-      <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>금융 연계 (월 상환액 추정)</h3>
+      <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>월 상환액 추정</h3>
       <p style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
-        {aptName ? `${aptName} 기준` : "현재 단지 기준"} · 원리금균등상환 추정
+        {aptName ? `${aptName} 기준` : "현재 단지 기준"}
       </p>
 
       <div className="hub-finance-grid">
@@ -233,23 +229,13 @@ export default function FinanceEstimateCard({
             trackEvent("finance_cta_click", { cta: "toggle_assumptions" });
           }}
         >
-          상환 계산 더보기
-        </button>
-        <button
-          type="button"
-          className="ui-button hub-button-muted"
-          disabled
-          title="준비중"
-          onClick={() => trackEvent("finance_cta_click", { cta: "loan_consult_coming_soon" })}
-        >
-          대출 상담 준비중
+          {showAssumptions ? "세부 조건 접기" : "세부 조건 조정"}
         </button>
         {loading && <span style={{ color: "#64748b", fontSize: 12 }}>계산 업데이트 중...</span>}
       </div>
 
-      <p style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>{disclaimer}</p>
-      <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 4 }}>
-        기준: {sourceLabel}
+      <p style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>
+        참고용 추정치입니다.
         {updatedAt ? ` · 업데이트 ${new Date(updatedAt).toLocaleString("ko-KR")}` : ""}
       </p>
     </section>
