@@ -31,6 +31,12 @@ export interface DealHistoryItem {
   buildYear: number | null;
 }
 
+export interface TrendDealItem {
+  dealDate: string;
+  dealAmountManwon: number;
+  areaM2: number;
+}
+
 export async function getComplexSummaryById(id: number): Promise<ComplexSummary | null> {
   if (!hasDatabaseUrl()) {
     throw new Error("DATABASE_URL is not configured");
@@ -127,5 +133,29 @@ export async function getComplexDealsById(id: number, page = 1, size = 20): Prom
     areaM2: Number(row.area_m2),
     floor: row.floor === null ? null : Number(row.floor),
     buildYear: row.build_year === null ? null : Number(row.build_year)
+  }));
+}
+
+export async function getComplexTrendDealsById(id: number, size = 300): Promise<TrendDealItem[]> {
+  if (!hasDatabaseUrl()) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const pool = getDbPool();
+  const result = await pool.query(
+    `
+    SELECT deal_date, deal_amount_manwon, area_m2
+    FROM deal_trade_normalized
+    WHERE complex_id = $1
+    ORDER BY deal_date DESC, id DESC
+    LIMIT $2
+    `,
+    [id, size]
+  );
+
+  return result.rows.map((row) => ({
+    dealDate: new Date(row.deal_date).toISOString(),
+    dealAmountManwon: Number(row.deal_amount_manwon),
+    areaM2: Number(row.area_m2)
   }));
 }
