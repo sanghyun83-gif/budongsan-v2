@@ -2,6 +2,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import Script from "next/script";
+import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -78,7 +79,9 @@ export default function RootLayout({
         <GlobalHeader />
         <div className="global-under-search">
           <div className="global-under-search-inner">
-            <HeaderSearch />
+            <Suspense fallback={null}>
+              <HeaderSearch />
+            </Suspense>
           </div>
         </div>
         {children}
