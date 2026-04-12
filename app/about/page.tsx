@@ -31,7 +31,6 @@ export default function AboutPage() {
           <li>지도 바운드 기반 결과 필터링</li>
           <li>정렬 옵션(최신순, 가격순, 거래수)</li>
           <li>단지 상세 및 최근 거래 스냅샷</li>
-          <li>좌표 품질 배지 제공(exact/approx)</li>
         </ul>
       </section>
 
@@ -40,9 +39,6 @@ export default function AboutPage() {
         <p style={{ color: "#334155", lineHeight: 1.6 }}>
           주요 데이터 출처는 국토교통부 실거래가 공개데이터이며, 각 화면에 출처와 최종 업데이트 시각을 함께 표시합니다.
         </p>
-        <p style={{ color: "#334155", lineHeight: 1.6 }}>
-          지도 좌표는 품질 기준에 따라 정확(exact) 또는 근사(approx)로 구분해 노출합니다.
-        </p>
       </section>
 
       <section className="legal-card">
@@ -50,7 +46,6 @@ export default function AboutPage() {
         <ul style={{ color: "#334155", lineHeight: 1.6, paddingLeft: 18, display: "grid", gap: 4 }}>
           <li>출처/기준 시각을 명시합니다.</li>
           <li>정렬/필터/지도 결과의 일관성을 지속 점검합니다.</li>
-          <li>품질 지표(exactRatio/failRatio)를 기준으로 좌표 품질을 관리합니다.</li>
           <li>기능 및 정책 변경 시 문서와 페이지를 함께 갱신합니다.</li>
         </ul>
       </section>

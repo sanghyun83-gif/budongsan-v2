@@ -4,6 +4,8 @@ import Link from "next/link";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import GlobalHeader from "@/components/GlobalHeader";
+import HeaderSearch from "@/components/HeaderSearch";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,12 +24,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://saljip.kr"),
   title: { default: "서울·수도권 아파트 실거래가·시세 | 살집", template: "%s | 살집" },
   description:
-    "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공. 출처: 국토교통부 실거래가 공개데이터.",
+    "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 텍스트 검색으로 확인하세요. 최근 거래일·거래량·가격 요약 제공. 출처: 국토교통부 실거래가 공개데이터.",
   robots: { index: true, follow: true },
   alternates: { canonical: "https://saljip.kr" },
   openGraph: {
     title: "서울·수도권 아파트 실거래가·시세 | 살집",
-    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공.",
+    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 텍스트 검색으로 확인하세요. 최근 거래일·거래량·가격 요약 제공.",
     url: "https://saljip.kr",
     type: "website",
     siteName: "살집",
@@ -37,7 +39,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "서울·수도권 아파트 실거래가·시세 | 살집",
-    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 지도에서 검색하세요. 최근 거래일·거래량·가격 요약 제공.",
+    description: "서울·수도권 아파트 매매·전세·월세 실거래가와 시세를 텍스트 검색으로 확인하세요. 최근 거래일·거래량·가격 요약 제공.",
     images: ["https://saljip.kr/og-default.png"]
   },
   icons: {
@@ -73,11 +75,12 @@ export default function RootLayout({
             </Script>
           </>
         ) : null}
-        <nav style={{ borderBottom: "1px solid #e2e8f0", background: "#fff" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 20px", display: "flex", gap: 14 }}>
-            <Link href="/" style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>홈</Link>
+        <GlobalHeader />
+        <div className="global-under-search">
+          <div className="global-under-search-inner">
+            <HeaderSearch />
           </div>
-        </nav>
+        </div>
         {children}
         <footer style={{ borderTop: "1px solid #e2e8f0", marginTop: 24, background: "#fff" }}>
           <div

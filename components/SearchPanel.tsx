@@ -1,7 +1,10 @@
-﻿"use client";
+"use client";
 
-import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+
+type MarketTabKey = "apt_sale";
 
 type SearchItem = {
   id: string;
@@ -12,6 +15,15 @@ type SearchItem = {
   deal_date: string | null;
 };
 
+const MARKET_TABS: Array<{ key: MarketTabKey; label: string }> = [
+  { key: "apt_sale", label: "아파트 매매" }
+];
+
+function parseMarketTab(value: string | null): MarketTabKey {
+  void value;
+  return "apt_sale";
+}
+
 function formatManwon(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
   const uk = Math.floor(value / 10000);
@@ -21,102 +33,164 @@ function formatManwon(value: number | null): string {
   return `${value.toLocaleString()}만원`;
 }
 
+function formatDate(value: string | null): string {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("ko-KR");
+}
+
 export default function SearchPanel() {
-  const [q, setQ] = useState("래미안");
-  const [region, setRegion] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [marketTab, setMarketTab] = useState<MarketTabKey>("apt_sale");
+  const [q, setQ] = useState("");
+  const [items, setItems] = useState<SearchItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [items, setItems] = useState<SearchItem[]>([]);
-  const [updatedAt, setUpdatedAt] = useState<string>(new Date().toISOString());
+  const abortRef = useRef<AbortController | null>(null);
+  const cacheRef = useRef<Map<string, { items: SearchItem[]; totalCount: number }>>(new Map());
 
+  const trimmedQ = q.trim();
   const hasItems = useMemo(() => items.length > 0, [items]);
 
-  async function runSearch(event?: FormEvent) {
-    event?.preventDefault();
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setMarketTab(parseMarketTab(params.get("market")));
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
 
-    try {
-      const sp = new URLSearchParams();
-      sp.set("q", q.trim());
-      sp.set("page", "1");
-      sp.set("size", "20");
-      if (region.trim()) sp.set("region", region.trim());
-      if (minPrice.trim()) sp.set("min_price", minPrice.trim());
-      if (maxPrice.trim()) sp.set("max_price", maxPrice.trim());
-
-      const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
-      const json = await res.json();
-
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error ?? "검색 요청 실패");
-      }
-
-      setItems(json.items ?? []);
-      setUpdatedAt(new Date().toISOString());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "알 수 없는 오류");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+  function handleMarketTabChange(nextTab: MarketTabKey) {
+    setMarketTab(nextTab);
+    const next = new URLSearchParams(window.location.search);
+    next.delete("market");
+    const nextQuery = next.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
   }
 
+  useEffect(() => {
+    if (!trimmedQ) {
+      setItems([]);
+      setTotalCount(0);
+      setError("");
+      return;
+    }
+
+    const cached = cacheRef.current.get(trimmedQ);
+    if (cached) {
+      setItems(cached.items);
+      setTotalCount(cached.totalCount);
+      setError("");
+    }
+
+    const timer = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const sp = new URLSearchParams();
+        sp.set("q", trimmedQ);
+        sp.set("page", "1");
+        sp.set("size", "20");
+        sp.set("sort", "latest");
+        sp.set("lite", "true");
+
+        const res = await fetch(`/api/search?${sp.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        const json = await res.json();
+
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error ?? "검색 요청 실패");
+        }
+
+        const nextItems = (json.items ?? []) as SearchItem[];
+        const nextTotalCount = Number(json.totalCount ?? json.count ?? 0);
+        cacheRef.current.set(trimmedQ, { items: nextItems, totalCount: nextTotalCount });
+        setItems(nextItems);
+        setTotalCount(nextTotalCount);
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return;
+        setItems([]);
+        setTotalCount(0);
+        setError(e instanceof Error ? e.message : "알 수 없는 오류");
+      } finally {
+        setLoading(false);
+      }
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [trimmedQ]);
+
   return (
-    <section style={{ display: "grid", gap: 12 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700 }}>검색</h2>
-      <form onSubmit={runSearch} style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="단지명/동" style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10 }} />
-        <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="지역코드(예:11680)" style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10 }} />
-        <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="최소가(만원)" style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10 }} />
-        <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="최대가(만원)" style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 10 }} />
-        <button type="submit" style={{ border: 0, borderRadius: 10, padding: "10px 14px", background: "#0f766e", color: "#fff", fontWeight: 700 }} disabled={loading}>
-          {loading ? "검색중..." : "검색"}
-        </button>
-      </form>
+    <main className="search-home-wrap">
+      <div className="search-home-layout">
+        <aside className="search-left-nav">
+          <div className="search-left-brand">살집</div>
+          {MARKET_TABS.map((tab) => {
+            const active = marketTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => handleMarketTabChange(tab.key)}
+                className={`search-left-nav-item ${active ? "is-active" : ""}`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </aside>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "#475569", fontSize: 14 }}>
-        <span>데이터 출처: 국토교통부 실거래가</span>
-        <span>최종 업데이트: {new Date(updatedAt).toLocaleString("ko-KR")}</span>
-        <span>결과: {items.length}건</span>
+        <section className="search-main-pane">
+          <div className="search-input-card">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="아파트명, 지역명 검색"
+              className="search-main-input"
+            />
+            <p className="search-meta-text">
+              {trimmedQ ? `검색결과 ${totalCount.toLocaleString()}건` : "검색어를 입력하면 단지 목록이 나타납니다."}
+            </p>
+          </div>
+
+          {error && <div className="search-error-box">오류: {error}</div>}
+          {loading && <div className="search-loading-text">검색 중...</div>}
+
+          {!loading && trimmedQ && !error && !hasItems && (
+            <div className="search-empty-box">일치하는 단지가 없습니다.</div>
+          )}
+
+          {hasItems && (
+            <div className="search-result-list">
+              {items.map((item) => (
+                <Link key={item.id} href={`/complexes/${item.id}`} className="search-result-item">
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
+                    <p style={{ color: "#64748b", fontSize: 13 }}>{item.region_name} {item.legal_dong}</p>
+                  </div>
+                  <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
+                    <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>
+                    <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(item.deal_date)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-
-      {error && <div style={{ color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10 }}>오류: {error}</div>}
-
-      {!loading && !error && !hasItems && <div style={{ color: "#64748b" }}>조건에 맞는 단지가 없습니다.</div>}
-
-      {hasItems && (
-        <div style={{ display: "grid", gap: 8 }}>
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={`/complexes/${item.id}`}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: 10,
-                padding: 12,
-                textDecoration: "none",
-                color: "inherit"
-              }}
-            >
-              <div>
-                <p style={{ fontWeight: 700 }}>{item.apt_name}</p>
-                <p style={{ color: "#64748b", fontSize: 14 }}>{item.region_name} {item.legal_dong}</p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ fontWeight: 700 }}>{formatManwon(item.deal_amount_manwon)}</p>
-                <p style={{ color: "#64748b", fontSize: 13 }}>{item.deal_date ? new Date(item.deal_date).toLocaleDateString("ko-KR") : "-"}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </section>
+    </main>
   );
 }

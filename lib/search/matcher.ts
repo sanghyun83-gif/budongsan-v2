@@ -28,6 +28,7 @@ export type SearchMatcher = {
   qNormLike: string | null;
   patternTerms: string[] | null;
   andTokens: string[] | null;
+  splitPairTokens: string[] | null;
 };
 
 export function buildSearchMatcher(query: string): SearchMatcher {
@@ -37,6 +38,7 @@ export function buildSearchMatcher(query: string): SearchMatcher {
 
   const patternTerms: string[] = [];
   const andTokens: string[] = [];
+  const splitPairTokens: string[] = [];
 
   if (qNorm.length > 0) {
     patternTerms.push(qNorm);
@@ -45,6 +47,15 @@ export function buildSearchMatcher(query: string): SearchMatcher {
       .map((token) => normalize(token))
       .filter((token) => token.length >= 2);
     andTokens.push(...splitTokens);
+
+    if (!qExact.includes(" ") && qNorm.length >= 4) {
+      for (let i = 2; i <= qNorm.length - 2; i += 1) {
+        const left = qNorm.slice(0, i);
+        const right = qNorm.slice(i);
+        if (left.length < 2 || right.length < 2) continue;
+        splitPairTokens.push(`${left}|${right}`);
+      }
+    }
 
     for (const group of ALIAS_GROUPS) {
       for (const variant of group.variants) {
@@ -74,7 +85,8 @@ export function buildSearchMatcher(query: string): SearchMatcher {
     qExact,
     qNormLike: qNorm.length > 0 ? `%${qNorm}%` : null,
     patternTerms: patternTerms.length > 0 ? unique(patternTerms) : null,
-    andTokens: andTokens.length > 0 ? unique(andTokens) : null
+    andTokens: andTokens.length > 0 ? unique(andTokens) : null,
+    splitPairTokens: splitPairTokens.length > 0 ? unique(splitPairTokens) : null
   };
 }
 

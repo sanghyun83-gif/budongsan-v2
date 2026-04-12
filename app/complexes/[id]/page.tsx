@@ -108,10 +108,6 @@ function formatKstDateTime(input: string): string {
   return KST_DATE_TIME_FORMATTER.format(parsed);
 }
 
-function formatLocationSourceLabel(source: "exact" | "approx"): string {
-  return source === "exact" ? "좌표 품질: 정확" : "좌표 품질: 근사";
-}
-
 function sanitizeRegionName(raw: string | null | undefined): string {
   const value = (raw ?? "").trim();
   if (!value) return "";
@@ -205,7 +201,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
   const complex = await getComplexSummaryById(complexId);
   if (!complex) notFound();
 
-  const locationQuality = complex.locationQuality ?? complex.locationSource ?? "approx";
   const summarySnippet = buildComplexSummarySnippet(
     complex.legalDong,
     complex.aptName,
@@ -270,7 +265,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
           <span className="ui-trust-chip">출처: 국토교통부 실거래가 공개데이터</span>
           <span className="ui-trust-chip">최종 업데이트: {formatKstDateTime(complex.updatedAt)}</span>
-          <span className="ui-trust-chip">{formatLocationSourceLabel(locationQuality)}</span>
         </div>
         <p style={{ color: "#0f172a", marginTop: 10, lineHeight: 1.55 }}>{summarySnippet}</p>
       </section>
@@ -459,7 +453,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
           <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>단지정보</h2>
             <p style={{ color: "#0f172a" }}>출처: 국토교통부 실거래가 공개데이터</p>
-            <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준 · {formatLocationSourceLabel(locationQuality)}</p>
+            <p style={{ color: "#64748b", marginTop: 4 }}>기준: API 조회 시점 기준</p>
           </section>
 
           <LivabilitySummaryCard

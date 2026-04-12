@@ -36,3 +36,12 @@ None
 - 11545 금천구
 - 11140 중구
 - 11110 종로구
+
+## 작업 로그
+- 2026-04-12
+  - 11740 강동구 202603 적재 실행
+    - 명령: `node scripts/ingest-molit.mjs --regions=11740 --dealYmd=202603`
+    - 결과: fetched 190, normalized 190, raw 신규 188, normalized 신규 190
+  - 11740 강동구 202602 누락분 보강 적재 실행
+    - 명령: `node scripts/ingest-molit.mjs --regions=11740 --dealYmd=202602`
+    - 결과: fetched 293, normalized 293, raw 신규 122, normalized 신규 145

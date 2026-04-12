@@ -163,6 +163,18 @@ export async function GET(req: NextRequest) {
                  WHERE t <> '' AND norm.text_norm NOT LIKE ('%' || t || '%')
                ) THEN 80
               ELSE 0
+            END
+            + CASE
+              WHEN $19::TEXT[] IS NOT NULL
+               AND EXISTS (
+                 SELECT 1
+                 FROM unnest($19::TEXT[]) s
+                 WHERE split_part(s, '|', 1) <> ''
+                   AND split_part(s, '|', 2) <> ''
+                   AND norm.text_norm LIKE ('%' || split_part(s, '|', 1) || '%')
+                   AND norm.text_norm LIKE ('%' || split_part(s, '|', 2) || '%')
+               ) THEN 70
+              ELSE 0
             END AS rank_score
         ) scored
         WHERE
@@ -185,6 +197,17 @@ export async function GET(req: NextRequest) {
                 SELECT 1
                 FROM unnest($18::TEXT[]) t
                 WHERE t <> '' AND norm.text_norm NOT LIKE ('%' || t || '%')
+              )
+            )
+            OR (
+              $19::TEXT[] IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM unnest($19::TEXT[]) s
+                WHERE split_part(s, '|', 1) <> ''
+                  AND split_part(s, '|', 2) <> ''
+                  AND norm.text_norm LIKE ('%' || split_part(s, '|', 1) || '%')
+                  AND norm.text_norm LIKE ('%' || split_part(s, '|', 2) || '%')
               )
             )
           )
@@ -233,7 +256,8 @@ export async function GET(req: NextRequest) {
         input.max_total_units ?? null,
         matcher.qNormLike,
         matcher.patternTerms,
-        matcher.andTokens
+        matcher.andTokens,
+        matcher.splitPairTokens
       ]);
     } else {
       const sql = `
@@ -295,6 +319,18 @@ export async function GET(req: NextRequest) {
               ELSE 0
             END
             + CASE
+              WHEN $19::TEXT[] IS NOT NULL
+               AND EXISTS (
+                 SELECT 1
+                 FROM unnest($19::TEXT[]) s
+                 WHERE split_part(s, '|', 1) <> ''
+                   AND split_part(s, '|', 2) <> ''
+                   AND norm.text_norm LIKE ('%' || split_part(s, '|', 1) || '%')
+                   AND norm.text_norm LIKE ('%' || split_part(s, '|', 2) || '%')
+               ) THEN 70
+              ELSE 0
+            END
+            + CASE
               WHEN latest.deal_date >= (CURRENT_DATE - INTERVAL '30 days') THEN 40
               WHEN latest.deal_date >= (CURRENT_DATE - INTERVAL '90 days') THEN 20
               ELSE 0
@@ -320,6 +356,17 @@ export async function GET(req: NextRequest) {
                 SELECT 1
                 FROM unnest($18::TEXT[]) t
                 WHERE t <> '' AND norm.text_norm NOT LIKE ('%' || t || '%')
+              )
+            )
+            OR (
+              $19::TEXT[] IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM unnest($19::TEXT[]) s
+                WHERE split_part(s, '|', 1) <> ''
+                  AND split_part(s, '|', 2) <> ''
+                  AND norm.text_norm LIKE ('%' || split_part(s, '|', 1) || '%')
+                  AND norm.text_norm LIKE ('%' || split_part(s, '|', 2) || '%')
               )
             )
           )
@@ -368,7 +415,8 @@ export async function GET(req: NextRequest) {
         input.max_total_units ?? null,
         matcher.qNormLike,
         matcher.patternTerms,
-        matcher.andTokens
+        matcher.andTokens,
+        matcher.splitPairTokens
       ]);
     }
 
