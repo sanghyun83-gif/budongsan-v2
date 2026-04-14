@@ -5,6 +5,7 @@ import ComplexListingsTab from "@/components/ComplexListingsTab";
 import DetailActionBar from "@/components/DetailActionBar";
 import FinanceEstimateCard from "@/components/FinanceEstimateCard";
 import LivabilitySummaryCard from "@/components/LivabilitySummaryCard";
+import SandboxTradeChartMock from "@/components/SandboxTradeChartMock";
 import { getComplexDealsById, getComplexSummaryById, getComplexTrendDealsById } from "@/lib/complexes";
 import type { TrendDealItem } from "@/lib/complexes";
 
@@ -190,6 +191,91 @@ function buildRawHref(complexId: number, tab?: string, trend?: string, area?: st
   return `/complexes/${complexId}${sp.toString() ? `?${sp.toString()}` : ""}`;
 }
 
+function toJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+function buildPriceChartStructuredData(input: {
+  complexId: number;
+  aptName: string;
+  legalDong: string;
+  pageUrl: string;
+  selectedArea: string;
+  trendWindow: TrendWindow;
+  deals: TrendDealItem[];
+  updatedAt: string;
+}) {
+  const areaLabel = input.selectedArea === "all" ? "전체 전용면적" : `${input.selectedArea}㎡`;
+  const sortedDates = input.deals
+    .map((d) => new Date(d.dealDate))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const temporalCoverage = sortedDates.length > 0
+    ? `${sortedDates[0].toISOString().slice(0, 10)}/${sortedDates[sortedDates.length - 1].toISOString().slice(0, 10)}`
+    : undefined;
+
+  const datasetId = `${input.pageUrl}#dataset-sale-trend`;
+  const webPageId = `${input.pageUrl}#webpage`;
+  const name = `${input.aptName} ${areaLabel} 아파트 매매 실거래가 추이`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": webPageId,
+        url: input.pageUrl,
+        name: `${input.aptName} 실거래가·시세 | ${input.legalDong} 아파트 | 살집`,
+        description: `${input.legalDong} ${input.aptName} 아파트의 ${areaLabel} 매매 실거래가 추이 및 거래량 차트입니다.`,
+        inLanguage: "ko-KR",
+        isPartOf: {
+          "@type": "WebSite",
+          name: "살집",
+          url: "https://saljip.kr"
+        },
+        primaryImageOfPage: "https://saljip.kr/og-default.png",
+        mainEntity: { "@id": datasetId },
+        dateModified: input.updatedAt
+      },
+      {
+        "@type": "Dataset",
+        "@id": datasetId,
+        name,
+        description: `${input.aptName} 아파트 ${areaLabel} 기준 매매 실거래가 및 월별 거래량 데이터셋`,
+        url: input.pageUrl,
+        isAccessibleForFree: true,
+        inLanguage: "ko-KR",
+        keywords: [
+          input.aptName,
+          input.legalDong,
+          "아파트 실거래가",
+          "매매 실거래가 추이",
+          "전용면적별 실거래가",
+          "부동산 시세"
+        ],
+        creator: {
+          "@type": "Organization",
+          name: "살집"
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "살집"
+        },
+        variableMeasured: ["매매 실거래가", "월별 거래량"],
+        measurementTechnique: `기간 필터(${input.trendWindow}) 및 전용면적 필터(${areaLabel}) 기반 집계`,
+        temporalCoverage,
+        dateModified: input.updatedAt,
+        includedInDataCatalog: {
+          "@type": "DataCatalog",
+          name: "살집 아파트 실거래가 데이터"
+        },
+        license: "https://www.data.go.kr/"
+      }
+    ]
+  };
+}
+
 export default async function ComplexDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const { tab, trend, area } = await searchParams;
@@ -253,8 +339,29 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
     { key: "info", label: "단지정보" }
   ];
 
+  const pageUrl = `https://saljip.kr${normalizedHref}`;
+  const priceChartJsonLd = activeTab === "price"
+    ? buildPriceChartStructuredData({
+        complexId,
+        aptName: complex.aptName,
+        legalDong: complex.legalDong,
+        pageUrl,
+        selectedArea,
+        trendWindow,
+        deals: filteredTrendDeals,
+        updatedAt: complex.updatedAt
+      })
+    : null;
+
   return (
     <main style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 16 }}>
+      {priceChartJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toJsonLd(priceChartJsonLd) }}
+        />
+      )}
+
       <Link href="/" style={{ color: "#0f766e", textDecoration: "underline", width: "fit-content" }}>
         뒤로
       </Link>
@@ -320,6 +427,8 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
               <p style={{ fontSize: 24, fontWeight: 800 }}>{complex.dealCount3m}건</p>
             </div>
           </section>
+
+          <SandboxTradeChartMock deals={trendDeals} initialArea={selectedArea} complexName={complex.aptName} />
 
           {saleTrend && (
             <section style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 12, padding: 16, display: "grid", gap: 12 }}>
