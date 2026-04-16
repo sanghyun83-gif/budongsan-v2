@@ -1,12 +1,9 @@
 ﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import Script from "next/script";
-import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import GlobalHeader from "@/components/GlobalHeader";
-import HeaderSearch from "@/components/HeaderSearch";
+import RouteChrome from "@/components/RouteChrome";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -76,42 +73,7 @@ export default function RootLayout({
             </Script>
           </>
         ) : null}
-        <GlobalHeader />
-        <div className="global-under-search">
-          <div className="global-under-search-inner">
-            <Suspense fallback={null}>
-              <HeaderSearch />
-            </Suspense>
-          </div>
-        </div>
-        {children}
-        <footer style={{ borderTop: "1px solid #e2e8f0", marginTop: 24, background: "#fff" }}>
-          <div
-            style={{
-              maxWidth: 1200,
-              margin: "0 auto",
-              padding: "14px 20px",
-              display: "flex",
-              gap: 14,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between"
-            }}
-          >
-            <p style={{ color: "#64748b", fontSize: 13 }}>© {new Date().getFullYear()} 살집 · 데이터 기반 부동산 정보 서비스</p>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href="/about" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
-                About
-              </Link>
-              <Link href="/privacy" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
-                Privacy
-              </Link>
-              <Link href="/terms" style={{ color: "#0f172a", fontSize: 13, textDecoration: "underline" }}>
-                Terms
-              </Link>
-            </div>
-          </div>
-        </footer>
+        <RouteChrome>{children}</RouteChrome>
         <Analytics />
         <SpeedInsights />
       </body>

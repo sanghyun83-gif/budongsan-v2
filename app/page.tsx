@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import SearchResultsPage from "@/components/SearchResultsPage";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 

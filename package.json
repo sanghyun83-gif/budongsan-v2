@@ -16,6 +16,8 @@
         "qa:listings-naver-fixture": "node scripts/listings-naver-fixture-smoke.mjs",
         "qa:sync-listings-fixture-benchmark": "node scripts/sync-listings-fixture-smoke-to-benchmark.mjs",
         "qa:listings-naver-fixture:all": "node scripts/listings-naver-fixture-all.mjs",
+        "qa:commission-parity": "node scripts/commission-parity-smoke.mjs",
+        "qa:commission-smoke": "node scripts/commission-smoke.mjs",
         "qa:lighthouse:mobile": "lighthouse http://localhost:3000 --output html --output-path ./docs/lighthouse-mobile.html --chrome-flags=\"--headless\"", 
         "ingest:molit": "node scripts/ingest-molit.mjs",
         "ingest:molit:seoul3m": "node scripts/ingest-molit.mjs --months=3",

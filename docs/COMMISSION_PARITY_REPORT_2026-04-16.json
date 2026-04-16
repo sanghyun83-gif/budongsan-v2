@@ -1,0 +1,156 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "totalCases": 6,
+  "pass": 6,
+  "fail": 0,
+  "results": [
+    {
+      "name": "sale_house_default",
+      "scenario": {
+        "name": "sale_house_default",
+        "dealType": "sale",
+        "estateType": "house",
+        "amount": 95000
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 522.5,
+        "totalText": "522.5만원",
+        "durationMs": 1893,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 522.5,
+        "totalText": "5,225,000",
+        "durationMs": 4385,
+        "error": null
+      },
+      "same": true
+    },
+    {
+      "name": "lease_house_default",
+      "scenario": {
+        "name": "lease_house_default",
+        "dealType": "lease",
+        "estateType": "house",
+        "amount": 45000
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 148.5,
+        "totalText": "148.5만원",
+        "durationMs": 2060,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 148.5,
+        "totalText": "1,485,000",
+        "durationMs": 987,
+        "error": null
+      },
+      "same": true
+    },
+    {
+      "name": "rent_house_with_monthly",
+      "scenario": {
+        "name": "rent_house_with_monthly",
+        "dealType": "rent",
+        "estateType": "house",
+        "amount": 5000,
+        "rent": 120
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 56.1,
+        "totalText": "56.1만원",
+        "durationMs": 1963,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 56.1,
+        "totalText": "561,000",
+        "durationMs": 1047,
+        "error": null
+      },
+      "same": true
+    },
+    {
+      "name": "sale_distribution",
+      "scenario": {
+        "name": "sale_distribution",
+        "dealType": "sale",
+        "estateType": "distribution",
+        "amount": 70000,
+        "premium": 8000
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 343.2,
+        "totalText": "343.2만원",
+        "durationMs": 2166,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 343.2,
+        "totalText": "3,432,000",
+        "durationMs": 987,
+        "error": null
+      },
+      "same": true
+    },
+    {
+      "name": "sale_officetel_custom_vat",
+      "scenario": {
+        "name": "sale_officetel_custom_vat",
+        "dealType": "sale",
+        "estateType": "officetel",
+        "amount": 120000,
+        "customVatRate": 12
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 672,
+        "totalText": "672만원",
+        "durationMs": 1885,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 672,
+        "totalText": "6,720,000",
+        "durationMs": 1115,
+        "error": null
+      },
+      "same": true
+    },
+    {
+      "name": "sale_etc_custom_rate",
+      "scenario": {
+        "name": "sale_etc_custom_rate",
+        "dealType": "sale",
+        "estateType": "etc",
+        "amount": 30000,
+        "customRate": 0.7
+      },
+      "react": {
+        "ok": true,
+        "totalManwon": 231,
+        "totalText": "231만원",
+        "durationMs": 2302,
+        "error": null
+      },
+      "mock": {
+        "ok": true,
+        "totalManwon": 231,
+        "totalText": "2,310,000",
+        "durationMs": 1162,
+        "error": null
+      },
+      "same": true
+    }
+  ]
+}

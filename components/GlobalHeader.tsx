@@ -3,6 +3,8 @@
 import Link from "next/link";
 
 export default function GlobalHeader() {
+  const showMockLink = process.env.NEXT_PUBLIC_SHOW_MOCK_LINK === "1";
+
   return (
     <header className="global-header">
       <div className="global-header-inner">
@@ -22,6 +24,8 @@ export default function GlobalHeader() {
         <div />
 
         <nav className="global-header-menu" aria-label="주요 메뉴">
+          <Link href="/commission" className="global-header-menu-link">중개보수 계산기</Link>
+          {showMockLink ? <Link href="/mock/commission" className="global-header-menu-link">중개보수(모방)</Link> : null}
           <Link href="/about" className="global-header-menu-link">서비스 소개</Link>
         </nav>
       </div>
