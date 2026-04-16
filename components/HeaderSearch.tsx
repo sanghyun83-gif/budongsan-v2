@@ -11,14 +11,9 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => (searchParams.get("q") ?? "").trim());
   const composingRef = useRef(false);
-
-  useEffect(() => {
-    if (composingRef.current) return;
-    const nextQ = (searchParams.get("q") ?? "").trim();
-    setQ((prev) => (prev === nextQ ? prev : nextQ));
-  }, [pathname, searchParams]);
+  const showSeoIntro = !compact && (pathname === "/" || pathname === "/search");
 
   useEffect(() => {
     const keyword = q.trim();
@@ -50,23 +45,31 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className={`header-search-form ${compact ? "is-compact" : ""}`}>
-      <span className="header-search-icon" aria-hidden>
-        🔍
-      </span>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false;
-          setQ(e.currentTarget.value);
-        }}
-        placeholder="아파트명, 지역명 검색"
-        className="header-search-input"
-      />
-    </form>
+    <div className="header-search-wrap">
+      {showSeoIntro ? (
+        <div className="header-search-intro" aria-label="부동산 검색 소개">
+          <p className="header-search-intro-title">서울·수도권 아파트 실거래가 검색</p>
+          <p className="header-search-intro-desc">아파트명·지역명으로 매매·전세·월세 실거래가를 빠르게 확인하세요. 최근 거래일, 가격 추이, 거래량 요약 정보를 제공합니다.</p>
+        </div>
+      ) : null}
+      <form onSubmit={onSubmit} className={`header-search-form ${compact ? "is-compact" : ""}`}>
+        <span className="header-search-icon" aria-hidden>
+          🔍
+        </span>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={(e) => {
+            composingRef.current = false;
+            setQ(e.currentTarget.value);
+          }}
+          placeholder="아파트명, 지역명 검색"
+          className="header-search-input"
+        />
+      </form>
+    </div>
   );
 }
