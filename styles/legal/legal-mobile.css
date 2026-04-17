@@ -1,0 +1,30 @@
+@media (max-width: 500px) {
+  .legal-mimic.container {
+    padding: 12px 10px 30px;
+  }
+
+  .legal-save-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-save-btn {
+    min-height: 104px;
+    padding: 10px;
+  }
+
+  .legal-row {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-action-row {
+    flex-wrap: wrap;
+  }
+
+  .legal-title-row {
+    gap: 6px;
+  }
+
+  .addNaverMainBtn.rightop {
+    margin-left: 0;
+  }
+}

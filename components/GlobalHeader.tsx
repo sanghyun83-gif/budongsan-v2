@@ -25,6 +25,7 @@ export default function GlobalHeader() {
 
         <nav className="global-header-menu" aria-label="주요 메뉴">
           <Link href="/commission" className="global-header-menu-link">중개보수 계산기</Link>
+          <Link href="/legal" className="global-header-menu-link">법무사 보수 계산기</Link>
           {showMockLink ? <Link href="/mock/commission" className="global-header-menu-link">중개보수(모방)</Link> : null}
           <Link href="/about" className="global-header-menu-link">서비스 소개</Link>
         </nav>

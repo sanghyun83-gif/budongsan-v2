@@ -1,0 +1,73 @@
+.docs-article-wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px 36px;
+}
+
+.legal-card .docs-article-wrap {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.docs-article-wrap #copyUrlButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.docs-article-wrap .title {
+  color: #111827;
+  text-decoration: none;
+}
+
+.docs-article-wrap .subject-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.docs-article-wrap .speech-bubble {
+  position: absolute;
+  right: 0;
+  top: 20px;
+  min-width: 72px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  z-index: 20;
+}
+
+.docs-article-wrap .speech-bubble span {
+  cursor: pointer;
+}
+
+.docs-article-wrap #content {
+  line-height: 1.75;
+  color: #1f2937;
+}
+
+.docs-article-wrap .attachFile {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+
+.docs-article-wrap .comment {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.docs-article-wrap .writer {
+  width: calc(50% - 8px);
+  margin-right: 8px;
+}
+
+.docs-article-wrap .click {
+  cursor: pointer;
+}

@@ -1,0 +1,42 @@
+{
+  "version": "production-2026-04-17",
+  "maxAmountManwon": 9999999,
+  "vatRate": 0.1,
+  "minimumFeeWon": 100000,
+  "types": {
+    "house": {
+      "multiplier": 1,
+      "discountRate": 0,
+      "surchargeRate": 0,
+      "maxFeeRate": 0.009
+    },
+    "building": {
+      "multiplier": 1,
+      "discountRate": 0,
+      "surchargeRate": 0.05,
+      "maxFeeRate": 0.01
+    }
+  },
+  "brackets": [
+    { "upToWon": 10000000, "rate": 0.008 },
+    { "upToWon": 50000000, "rate": 0.007 },
+    { "upToWon": 100000000, "rate": 0.006 },
+    { "upToWon": 500000000, "rate": 0.005 },
+    { "upToWon": 1000000000, "rate": 0.004 },
+    { "upToWon": 2000000000, "rate": 0.0035 },
+    { "upToWon": 5000000000, "rate": 0.003 },
+    { "upToWon": 999999999999, "rate": 0.0025 }
+  ],
+  "publicCost": {
+    "localStampWon": 15000,
+    "certificateWon": 3000,
+    "stampDuty": [
+      { "upToWon": 10000000, "dutyWon": 0 },
+      { "upToWon": 30000000, "dutyWon": 20000 },
+      { "upToWon": 50000000, "dutyWon": 40000 },
+      { "upToWon": 100000000, "dutyWon": 70000 },
+      { "upToWon": 1000000000, "dutyWon": 150000 },
+      { "upToWon": 999999999999, "dutyWon": 350000 }
+    ]
+  }
+}
