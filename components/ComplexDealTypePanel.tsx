@@ -118,11 +118,15 @@ export default function ComplexDealTypePanel({ dealType, trendWindow, selectedAr
 
   const maxPrimary = currentDealType === "매매"
     ? Math.max(...saleDeals.map((d) => d.saleAmountManwon), 0)
-    : Math.max(...activeDeals.map((d) => d.depositManwon), 0);
+    : currentDealType === "전세"
+      ? Math.max(...jeonseDeals.map((d) => d.depositManwon), 0)
+      : Math.max(...wolseDeals.map((d) => d.depositManwon), 0);
 
   const minPrimaryRaw = currentDealType === "매매"
     ? Math.min(...saleDeals.map((d) => d.saleAmountManwon), Number.MAX_SAFE_INTEGER)
-    : Math.min(...activeDeals.map((d) => d.depositManwon), Number.MAX_SAFE_INTEGER);
+    : currentDealType === "전세"
+      ? Math.min(...jeonseDeals.map((d) => d.depositManwon), Number.MAX_SAFE_INTEGER)
+      : Math.min(...wolseDeals.map((d) => d.depositManwon), Number.MAX_SAFE_INTEGER);
   const minPrimary = Number.isFinite(minPrimaryRaw) && minPrimaryRaw !== Number.MAX_SAFE_INTEGER ? minPrimaryRaw : null;
 
   return (
