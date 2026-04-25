@@ -1,4 +1,4 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
@@ -57,6 +57,16 @@ function loadEnvLocal() {
   }
 }
 
+function parsePositiveInt(raw, fallback) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+function parseNonNegativeInt(raw, fallback) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : fallback;
+}
+
 function parseArgs() {
   const argMap = new Map();
   for (const arg of process.argv.slice(2)) {
@@ -67,13 +77,38 @@ function parseArgs() {
   const defaultRegions = ["11680", "11650", "11710", "11440", "11200", "11590", "11620", "11560", "11500", "11740"];
   const requestedRegions = (argMap.get("regions") ? argMap.get("regions").split(",") : defaultRegions).map((x) => x.trim());
   const regions = [...new Set(requestedRegions.flatMap((code) => REGION_CODE_ALIASES[code] ?? [code]))];
-  const months = Number(argMap.get("months") ?? "3");
-  const maxPerRegion = Number(argMap.get("maxPerRegion") ?? "8000");
+
+  const months = parsePositiveInt(argMap.get("months") ?? "3", 3);
+  const maxPerRegion = parseNonNegativeInt(argMap.get("maxPerRegion") ?? "0", 0);
   const dryRun = argMap.get("dryRun") === "true";
+  const normalizeInline = argMap.get("normalizeInline") === "true";
+
+  const regionConcurrency = parsePositiveInt(argMap.get("regionConcurrency") ?? "4", 4);
+  const monthConcurrency = parsePositiveInt(argMap.get("monthConcurrency") ?? "3", 3);
+  const fetchConcurrency = parsePositiveInt(argMap.get("fetchConcurrency") ?? "4", 4);
+  const dbBatchSize = parsePositiveInt(argMap.get("dbBatchSize") ?? "1000", 1000);
+  const retryMax = parsePositiveInt(argMap.get("retryMax") ?? "3", 3);
+
   const dealYmd = argMap.get("dealYmd");
   const startYmd = argMap.get("startYmd");
   const endYmd = argMap.get("endYmd");
-  return { regions, requestedRegions, months, maxPerRegion, dryRun, dealYmd, startYmd, endYmd };
+
+  return {
+    regions,
+    requestedRegions,
+    months,
+    maxPerRegion,
+    dryRun,
+    normalizeInline,
+    regionConcurrency,
+    monthConcurrency,
+    fetchConcurrency,
+    dbBatchSize,
+    retryMax,
+    dealYmd,
+    startYmd,
+    endYmd
+  };
 }
 
 function parseYmd(yyyymm) {
@@ -187,6 +222,7 @@ function normalizeDeal(raw, regionCode) {
   if (!dealYear || !dealMonth || !dealDay || !dealAmount || !areaM2) return null;
 
   const dealDate = `${dealYear}-${String(dealMonth).padStart(2, "0")}-${String(dealDay).padStart(2, "0")}`;
+  const dealYmd = `${dealYear}${String(dealMonth).padStart(2, "0")}${String(dealDay).padStart(2, "0")}`;
   const dedupKey = [regionCode, aptName, legalDong, dealDate, dealAmount, areaM2, floor].join("|");
 
   return {
@@ -194,6 +230,7 @@ function normalizeDeal(raw, regionCode) {
     legalDong,
     dealAmount,
     dealDate,
+    dealYmd,
     areaM2,
     floor,
     buildYear,
@@ -201,7 +238,7 @@ function normalizeDeal(raw, regionCode) {
       region_code: regionCode,
       apt_name: aptName,
       legal_dong: legalDong,
-      deal_ymd: `${dealYear}${String(dealMonth).padStart(2, "0")}${String(dealDay).padStart(2, "0")}`,
+      deal_ymd: dealYmd,
       deal_amount_manwon: dealAmount,
       area_m2: areaM2,
       floor,
@@ -211,16 +248,17 @@ function normalizeDeal(raw, regionCode) {
   };
 }
 
-async function fetchDealsByMonth(regionCode, yyyymm) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchXmlPage(regionCode, yyyymm, pageNo, numOfRows, retryMax) {
   const key = process.env.DATA_GO_KR_API_KEY;
   if (!key) throw new Error("Missing DATA_GO_KR_API_KEY");
 
-  const all = [];
-  let totalCount = 0;
-  let pageNo = 1;
-  const numOfRows = 1000;
-
+  let attempt = 0;
   while (true) {
+    attempt += 1;
     const url = new URL(TRADE_ENDPOINT);
     url.searchParams.set("serviceKey", key);
     url.searchParams.set("LAWD_CD", regionCode);
@@ -228,36 +266,371 @@ async function fetchDealsByMonth(regionCode, yyyymm) {
     url.searchParams.set("numOfRows", String(numOfRows));
     url.searchParams.set("pageNo", String(pageNo));
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    if (!res.ok) throw new Error(`MOLIT request failed (${regionCode}/${yyyymm}) status=${res.status}`);
+    try {
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) {
+        if ((res.status === 429 || res.status >= 500) && attempt < retryMax) {
+          const delay = 250 * 2 ** (attempt - 1) + Math.floor(Math.random() * 150);
+          await sleep(delay);
+          continue;
+        }
+        throw new Error(`MOLIT request failed (${regionCode}/${yyyymm}) page=${pageNo} status=${res.status}`);
+      }
+      return await res.text();
+    } catch (error) {
+      if (attempt >= retryMax) throw error;
+      const delay = 250 * 2 ** (attempt - 1) + Math.floor(Math.random() * 150);
+      await sleep(delay);
+    }
+  }
+}
 
-    const xml = await res.text();
-    const parsed = parseItems(xml);
-    totalCount = parsed.totalCount;
-    all.push(...parsed.items);
+async function pMapLimit(items, limit, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
 
-    if (all.length >= totalCount || parsed.items.length === 0) break;
-    pageNo += 1;
+  async function worker() {
+    while (true) {
+      const idx = cursor;
+      cursor += 1;
+      if (idx >= items.length) return;
+      results[idx] = await mapper(items[idx], idx);
+    }
   }
 
+  const workerCount = Math.max(1, Math.min(limit, items.length || 1));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function fetchDealsByMonth(regionCode, yyyymm, fetchConcurrency, retryMax) {
+  const numOfRows = 1000;
+
+  const firstXml = await fetchXmlPage(regionCode, yyyymm, 1, numOfRows, retryMax);
+  const firstParsed = parseItems(firstXml);
+  const all = [...firstParsed.items];
+
+  const totalPages = Math.ceil(firstParsed.totalCount / numOfRows);
+  if (totalPages <= 1) return all;
+
+  const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+  const pageItems = await pMapLimit(restPages, fetchConcurrency, async (pageNo) => {
+    const xml = await fetchXmlPage(regionCode, yyyymm, pageNo, numOfRows, retryMax);
+    const parsed = parseItems(xml);
+    return parsed.items;
+  });
+
+  for (const items of pageItems) all.push(...items);
   return all;
+}
+
+function chunkArray(items, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += chunkSize) chunks.push(items.slice(i, i + chunkSize));
+  return chunks;
+}
+
+async function insertTempDeals(client, rows, chunkSize) {
+  if (rows.length === 0) return;
+
+  const chunks = chunkArray(rows, chunkSize);
+  for (const chunk of chunks) {
+    const values = [];
+    const placeholders = [];
+
+    for (let i = 0; i < chunk.length; i += 1) {
+      const row = chunk[i];
+      const base = i * 13;
+      placeholders.push(
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}::date, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}::jsonb, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13})`
+      );
+      values.push(
+        row.regionCode,
+        row.aptName,
+        row.legalDong,
+        row.dealDate,
+        row.dealYmd,
+        row.dealAmount,
+        row.areaM2,
+        row.floor,
+        JSON.stringify(row.payload),
+        row.sourceHash,
+        row.externalKey,
+        row.lng,
+        row.lat
+      );
+    }
+
+    await client.query(
+      `
+      INSERT INTO temp_ingest_deals (
+        region_code, apt_name, legal_dong, deal_date, deal_ymd,
+        deal_amount_manwon, area_m2, floor, payload_json,
+        source_hash, external_key, lng, lat
+      )
+      VALUES ${placeholders.join(",")}
+      `,
+      values
+    );
+  }
+}
+
+async function persistRegionDeals({ client, regionId, regionCode, meta, deals, dbBatchSize, normalizeInline }) {
+  if (deals.length === 0) {
+    return { rawInserted: 0, normInserted: 0 };
+  }
+
+  const stagedRows = deals.map((deal) => {
+    const lat = meta.center.lat + hashOffset(`${deal.aptName}|${deal.legalDong}|lat`);
+    const lng = meta.center.lng + hashOffset(`${deal.aptName}|${deal.legalDong}|lng`);
+    return {
+      regionCode,
+      aptName: deal.aptName,
+      legalDong: deal.legalDong || "",
+      dealDate: deal.dealDate,
+      dealYmd: deal.payload.deal_ymd,
+      dealAmount: deal.dealAmount,
+      areaM2: deal.areaM2,
+      floor: deal.floor || null,
+      payload: deal.payload,
+      sourceHash: deal.sourceHash,
+      externalKey: `${regionCode}-${deal.aptName}`.slice(0, 120),
+      lng,
+      lat
+    };
+  });
+
+  await client.query("BEGIN");
+  try {
+    await client.query(
+      `
+      CREATE TEMP TABLE temp_ingest_deals (
+        region_code VARCHAR(5) NOT NULL,
+        apt_name VARCHAR(200) NOT NULL,
+        legal_dong VARCHAR(120) NOT NULL,
+        deal_date DATE NOT NULL,
+        deal_ymd VARCHAR(8) NOT NULL,
+        deal_amount_manwon INTEGER NOT NULL,
+        area_m2 NUMERIC(8,2) NOT NULL,
+        floor INTEGER,
+        payload_json JSONB NOT NULL,
+        source_hash CHAR(64) NOT NULL,
+        external_key VARCHAR(120) NOT NULL,
+        lng DOUBLE PRECISION NOT NULL,
+        lat DOUBLE PRECISION NOT NULL,
+        complex_id BIGINT
+      ) ON COMMIT DROP
+      `
+    );
+
+    await insertTempDeals(client, stagedRows, dbBatchSize);
+
+    await client.query(
+      `
+      INSERT INTO complex (
+        region_id, external_key, apt_name, legal_dong, location, build_year, updated_at
+      )
+      SELECT DISTINCT
+        $1::bigint,
+        t.external_key,
+        t.apt_name,
+        t.legal_dong,
+        ST_SetSRID(ST_MakePoint(t.lng, t.lat), 4326),
+        NULL::integer,
+        NOW()
+      FROM temp_ingest_deals t
+      ON CONFLICT (region_id, apt_name, legal_dong) DO UPDATE SET
+        external_key = EXCLUDED.external_key,
+        location = COALESCE(complex.location, EXCLUDED.location),
+        updated_at = NOW()
+      `,
+      [regionId]
+    );
+
+    await client.query(
+      `
+      UPDATE temp_ingest_deals t
+      SET complex_id = c.id
+      FROM complex c
+      WHERE c.region_id = $1::bigint
+        AND c.apt_name = t.apt_name
+        AND c.legal_dong = t.legal_dong
+      `,
+      [regionId]
+    );
+
+    const rawInsertRes = await client.query(
+      `
+      WITH inserted AS (
+        INSERT INTO deal_trade_raw (
+          source_name, source_record_hash, region_code, deal_ymd, payload_json, complex_id
+        )
+        SELECT
+          'molit',
+          t.source_hash,
+          t.region_code,
+          t.deal_ymd,
+          t.payload_json,
+          t.complex_id
+        FROM temp_ingest_deals t
+        WHERE t.complex_id IS NOT NULL
+        ON CONFLICT (source_record_hash) DO NOTHING
+        RETURNING id
+      )
+      SELECT COUNT(*)::INT AS inserted_count FROM inserted
+      `
+    );
+
+    let normInserted = 0;
+    if (normalizeInline) {
+      const normInsertRes = await client.query(
+        `
+        WITH inserted AS (
+          INSERT INTO deal_trade_normalized (
+            complex_id, deal_date, deal_amount_manwon, area_m2, floor, build_year, source_raw_id
+          )
+          SELECT
+            t.complex_id,
+            t.deal_date,
+            t.deal_amount_manwon,
+            t.area_m2,
+            t.floor,
+            NULL,
+            r.id
+          FROM temp_ingest_deals t
+          JOIN deal_trade_raw r ON r.source_record_hash = t.source_hash
+          WHERE t.complex_id IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM deal_trade_normalized n
+              WHERE n.source_raw_id = r.id
+            )
+          RETURNING id
+        )
+        SELECT COUNT(*)::INT AS inserted_count FROM inserted
+        `
+      );
+      normInserted = normInsertRes.rows[0]?.inserted_count ?? 0;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      rawInserted: rawInsertRes.rows[0]?.inserted_count ?? 0,
+      normInserted
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
+}
+
+async function processRegion({ pool, regionCode, targetMonths, monthConcurrency, fetchConcurrency, retryMax, maxPerRegion, dryRun, dbBatchSize, normalizeInline }) {
+  const startedAt = Date.now();
+  const meta = REGION_META[regionCode] ?? {
+    sido: "unknown",
+    sigungu: `code-${regionCode}`,
+    nameKo: `지역 ${regionCode}`,
+    center: { lat: 37.5665, lng: 126.978 }
+  };
+
+  const monthResults = await pMapLimit(targetMonths, monthConcurrency, async (yyyymm) => {
+    const monthStartedAt = Date.now();
+    const fetched = await fetchDealsByMonth(regionCode, yyyymm, fetchConcurrency, retryMax);
+    console.log(
+      `[ingest] region=${regionCode} month=${yyyymm} fetched=${fetched.length} durationMs=${Date.now() - monthStartedAt}`
+    );
+    return fetched;
+  });
+
+  const monthDeals = monthResults.flat();
+  const normalizedDeals = [];
+  for (const raw of monthDeals) {
+    const normalized = normalizeDeal(raw, regionCode);
+    if (normalized) normalizedDeals.push(normalized);
+  }
+
+  const limitedDeals = maxPerRegion > 0 ? normalizedDeals.slice(0, maxPerRegion) : normalizedDeals;
+  const totalDealsSeen = limitedDeals.length;
+
+  console.log(
+    `[ingest] region=${regionCode} fetched=${monthDeals.length} normalized=${normalizedDeals.length} selected=${totalDealsSeen} maxPerRegion=${maxPerRegion || "unlimited"}`
+  );
+
+  if (dryRun) {
+    return {
+      regionCode,
+      totalDealsSeen,
+      rawInserted: 0,
+      normInserted: 0,
+      durationMs: Date.now() - startedAt
+    };
+  }
+
+  const client = await pool.connect();
+  try {
+    const regionRes = await client.query(
+      `
+      INSERT INTO region (code, sido, sigungu, name_ko)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (code) DO UPDATE SET
+        sido = EXCLUDED.sido,
+        sigungu = EXCLUDED.sigungu,
+        name_ko = EXCLUDED.name_ko
+      RETURNING id
+      `,
+      [regionCode, meta.sido, meta.sigungu, meta.nameKo]
+    );
+
+    const regionId = Number(regionRes.rows[0].id);
+    const writeResult = await persistRegionDeals({
+      client,
+      regionId,
+      regionCode,
+      meta,
+      deals: limitedDeals,
+      dbBatchSize,
+      normalizeInline
+    });
+
+    return {
+      regionCode,
+      totalDealsSeen,
+      rawInserted: writeResult.rawInserted,
+      normInserted: writeResult.normInserted,
+      durationMs: Date.now() - startedAt
+    };
+  } finally {
+    client.release();
+  }
 }
 
 async function main() {
   loadEnvLocal();
-  const { regions, requestedRegions, months, maxPerRegion, dryRun, dealYmd, startYmd, endYmd } = parseArgs();
+  const {
+    regions,
+    requestedRegions,
+    months,
+    maxPerRegion,
+    dryRun,
+    normalizeInline,
+    regionConcurrency,
+    monthConcurrency,
+    fetchConcurrency,
+    dbBatchSize,
+    retryMax,
+    dealYmd,
+    startYmd,
+    endYmd
+  } = parseArgs();
 
   if (!process.env.DATABASE_URL) throw new Error("Missing DATABASE_URL in environment or .env.local");
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
+    ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false },
+    max: Math.max(10, regionConcurrency * 2 + 2)
   });
-
-  const regionIdCache = new Map();
-  let totalRawInserted = 0;
-  let totalNormInserted = 0;
-  let totalDealsSeen = 0;
 
   try {
     const now = new Date();
@@ -266,112 +639,39 @@ async function main() {
       console.log(`[ingest] expanded regions: requested=${requestedRegions.join(",")} resolved=${regions.join(",")}`);
     }
 
-    for (const regionCode of regions) {
-      const meta = REGION_META[regionCode] ?? {
-        sido: "unknown",
-        sigungu: `code-${regionCode}`,
-        nameKo: `지역 ${regionCode}`,
-        center: { lat: 37.5665, lng: 126.978 }
-      };
+    console.log(
+      `[ingest] options regionConcurrency=${regionConcurrency} monthConcurrency=${monthConcurrency} fetchConcurrency=${fetchConcurrency} dbBatchSize=${dbBatchSize} maxPerRegion=${maxPerRegion || "unlimited"} normalizeInline=${normalizeInline} retryMax=${retryMax}`
+    );
 
-      let regionId = regionIdCache.get(regionCode);
-      if (!regionId) {
-        const regionRes = await pool.query(
-          `
-          INSERT INTO region (code, sido, sigungu, name_ko)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (code) DO UPDATE SET
-            sido = EXCLUDED.sido,
-            sigungu = EXCLUDED.sigungu,
-            name_ko = EXCLUDED.name_ko
-          RETURNING id
-          `,
-          [regionCode, meta.sido, meta.sigungu, meta.nameKo]
-        );
-        regionId = regionRes.rows[0].id;
-        regionIdCache.set(regionCode, regionId);
+    const perRegion = await pMapLimit(regions, regionConcurrency, async (regionCode) => {
+      try {
+        return await processRegion({
+          pool,
+          regionCode,
+          targetMonths,
+          monthConcurrency,
+          fetchConcurrency,
+          retryMax,
+          maxPerRegion,
+          dryRun,
+          dbBatchSize,
+          normalizeInline
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[ingest] region=${regionCode} failed error=${message}`);
+        throw error;
       }
+    });
 
-      const monthDeals = [];
-      for (const yyyymm of targetMonths) {
-        const fetched = await fetchDealsByMonth(regionCode, yyyymm);
-        console.log(`[ingest] region=${regionCode} month=${yyyymm} fetched=${fetched.length}`);
-        monthDeals.push(...fetched);
-      }
+    const totalDealsSeen = perRegion.reduce((acc, cur) => acc + cur.totalDealsSeen, 0);
+    const totalRawInserted = perRegion.reduce((acc, cur) => acc + cur.rawInserted, 0);
+    const totalNormInserted = perRegion.reduce((acc, cur) => acc + cur.normInserted, 0);
 
-      const normalizedDeals = monthDeals
-        .map((raw) => normalizeDeal(raw, regionCode))
-        .filter(Boolean)
-        .slice(0, maxPerRegion);
-
-      totalDealsSeen += normalizedDeals.length;
-
-      console.log(`[ingest] region=${regionCode} fetched=${monthDeals.length} normalized=${normalizedDeals.length}`);
-
-      if (dryRun) continue;
-
-      for (const deal of normalizedDeals) {
-        const lat = meta.center.lat + hashOffset(`${deal.aptName}|${deal.legalDong}|lat`);
-        const lng = meta.center.lng + hashOffset(`${deal.aptName}|${deal.legalDong}|lng`);
-
-        const complexRes = await pool.query(
-          `
-          INSERT INTO complex (
-            region_id, external_key, apt_name, legal_dong, location, build_year, updated_at
-          )
-          VALUES (
-            $1, $2, $3, $4,
-            ST_SetSRID(ST_MakePoint($5, $6), 4326),
-            $7,
-            NOW()
-          )
-          ON CONFLICT (region_id, apt_name, legal_dong) DO UPDATE SET
-            external_key = EXCLUDED.external_key,
-            build_year = COALESCE(EXCLUDED.build_year, complex.build_year),
-            location = COALESCE(complex.location, EXCLUDED.location),
-            updated_at = NOW()
-          RETURNING id
-          `,
-          [regionId, `${regionCode}-${deal.aptName}`.slice(0, 120), deal.aptName, deal.legalDong || "", lng, lat, deal.buildYear || null]
-        );
-
-        const complexId = complexRes.rows[0].id;
-
-        const rawRes = await pool.query(
-          `
-          INSERT INTO deal_trade_raw (
-            source_name, source_record_hash, region_code, deal_ymd, payload_json, complex_id
-          )
-          VALUES ($1, $2, $3, $4, $5::jsonb, $6)
-          ON CONFLICT (source_record_hash) DO NOTHING
-          RETURNING id
-          `,
-          ["molit", deal.sourceHash, regionCode, deal.payload.deal_ymd, JSON.stringify(deal.payload), complexId]
-        );
-
-        if (rawRes.rowCount > 0) totalRawInserted += 1;
-
-        const normRes = await pool.query(
-          `
-          INSERT INTO deal_trade_normalized (
-            complex_id, deal_date, deal_amount_manwon, area_m2, floor, build_year, source_raw_id
-          )
-          SELECT $1, $2::date, $3, $4, $5, $6, $7
-          WHERE NOT EXISTS (
-            SELECT 1
-            FROM deal_trade_normalized n
-            WHERE n.complex_id = $1
-              AND n.deal_date = $2::date
-              AND n.deal_amount_manwon = $3
-              AND n.area_m2 = $4
-              AND COALESCE(n.floor, -999) = COALESCE($5, -999)
-          )
-          `,
-          [complexId, deal.dealDate, deal.dealAmount, deal.areaM2, deal.floor || null, deal.buildYear || null, rawRes.rows[0]?.id ?? null]
-        );
-
-        if (normRes.rowCount > 0) totalNormInserted += 1;
-      }
+    for (const item of perRegion) {
+      console.log(
+        `[ingest] region-summary region=${item.regionCode} deals=${item.totalDealsSeen} rawInserted=${item.rawInserted} normInserted=${item.normInserted} durationMs=${item.durationMs}`
+      );
     }
 
     console.log("[ingest] done", {
@@ -384,7 +684,8 @@ async function main() {
       totalDealsSeen,
       totalRawInserted,
       totalNormInserted,
-      dryRun
+      dryRun,
+      normalizeInline
     });
   } finally {
     await pool.end();

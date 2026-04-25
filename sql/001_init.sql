@@ -62,6 +62,16 @@ CREATE TABLE IF NOT EXISTS deal_trade_normalized (
 
 CREATE INDEX IF NOT EXISTS idx_deal_trade_norm_complex_date ON deal_trade_normalized(complex_id, deal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_deal_trade_norm_date_price ON deal_trade_normalized(deal_date DESC, deal_amount_manwon DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_deal_trade_norm_source_raw_id
+  ON deal_trade_normalized(source_raw_id)
+  WHERE source_raw_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS pipeline_state (
+  state_key VARCHAR(80) PRIMARY KEY,
+  value_text TEXT,
+  value_bigint BIGINT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS user_account (
   id BIGSERIAL PRIMARY KEY,

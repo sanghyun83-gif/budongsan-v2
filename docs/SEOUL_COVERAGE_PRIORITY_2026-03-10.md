@@ -38,10 +38,8 @@ None
 - 11110 종로구
 
 ## 작업 로그
+- 2026-04-25
+  - 서울 25개구 순차 적재 (202601~202604) — 적재: `20061/20061/raw+9458`, normalize: `완료`
+  - 11710 송파구 (202503~202604) — 적재: `1118/1118/raw+606`, normalize: `완료`
 - 2026-04-12
-  - 11740 강동구 202603 적재 실행
-    - 명령: `node scripts/ingest-molit.mjs --regions=11740 --dealYmd=202603`
-    - 결과: fetched 190, normalized 190, raw 신규 188, normalized 신규 190
-  - 11740 강동구 202602 누락분 보강 적재 실행
-    - 명령: `node scripts/ingest-molit.mjs --regions=11740 --dealYmd=202602`
-    - 결과: fetched 293, normalized 293, raw 신규 122, normalized 신규 145
+  - 11740 강동구 (202503~202603) — 적재: `202603(190/190/raw+188)`, `202602 보강(293/293/raw+122)`, normalize: `완료`
