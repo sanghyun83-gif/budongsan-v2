@@ -48,8 +48,8 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
     <div className="header-search-wrap">
       {showSeoIntro ? (
         <div className="header-search-intro" aria-label="부동산 검색 소개">
-          <p className="header-search-intro-title">서울·수도권 아파트 실거래가 검색</p>
-          <p className="header-search-intro-desc">아파트명·지역명으로 매매·전세·월세 실거래가를 빠르게 확인하세요. 최근 거래일, 가격 추이, 거래량 요약 정보를 제공합니다.</p>
+          <p className="header-search-intro-title">전국 아파트·빌라 실거래가 검색</p>
+          <p className="header-search-intro-desc">아파트·연립·다세대(빌라) 이름과 지역명으로 국토교통부 실거래가를 빠르게 확인하세요. 매매·전세·월세 최근 거래일, 가격 추이, 거래량 요약 정보를 제공합니다.</p>
         </div>
       ) : null}
       <form onSubmit={onSubmit} className={`header-search-form ${compact ? "is-compact" : ""}`}>
