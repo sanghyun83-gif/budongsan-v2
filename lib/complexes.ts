@@ -37,6 +37,17 @@ export interface TrendDealItem {
   areaM2: number;
 }
 
+export interface RentHistoryItem {
+  id: number;
+  dealDate: string;
+  rentType: "jeonse" | "wolse";
+  depositManwon: number;
+  monthlyRentManwon: number;
+  areaM2: number;
+  floor: number | null;
+  buildYear: number | null;
+}
+
 export async function getComplexSummaryById(id: number): Promise<ComplexSummary | null> {
   if (!hasDatabaseUrl()) {
     throw new Error("DATABASE_URL is not configured");
@@ -157,5 +168,34 @@ export async function getComplexTrendDealsById(id: number, size = 300): Promise<
     dealDate: new Date(row.deal_date).toISOString(),
     dealAmountManwon: Number(row.deal_amount_manwon),
     areaM2: Number(row.area_m2)
+  }));
+}
+
+export async function getComplexRentDealsById(id: number, size = 200): Promise<RentHistoryItem[]> {
+  if (!hasDatabaseUrl()) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const pool = getDbPool();
+  const result = await pool.query(
+    `
+    SELECT id, deal_date, rent_type, deposit_manwon, monthly_rent_manwon, area_m2, floor, build_year
+    FROM deal_rent_normalized
+    WHERE complex_id = $1
+    ORDER BY deal_date DESC, id DESC
+    LIMIT $2
+    `,
+    [id, size]
+  );
+
+  return result.rows.map((row) => ({
+    id: Number(row.id),
+    dealDate: new Date(row.deal_date).toISOString(),
+    rentType: row.rent_type === "wolse" ? "wolse" : "jeonse",
+    depositManwon: Number(row.deposit_manwon),
+    monthlyRentManwon: Number(row.monthly_rent_manwon ?? 0),
+    areaM2: Number(row.area_m2),
+    floor: row.floor === null ? null : Number(row.floor),
+    buildYear: row.build_year === null ? null : Number(row.build_year)
   }));
 }

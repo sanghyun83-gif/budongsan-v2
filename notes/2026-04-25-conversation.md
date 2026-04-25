@@ -26,5 +26,20 @@
 - 맵 관련 parity 리포트(.md/.json) 아카이브 이동
   - `docs/archive/map/`
 
+## 상세 페이지 UI/토글 동기화 작업 추가
+- 대상: `/complexes/[id]` (검증 기준 `18742`)
+- 요구사항 반영: 매매/전세/월세 토글 상태를 URL `dealType`로 고정
+  - 값: `sale | jeonse | wolse`
+  - 기본값/정규화: 미지정/이상값은 `sale`
+- 적용 파일: `app/complexes/[id]/page.tsx`, `components/ComplexDealTypePanel.tsx`
+  - `searchParams`에 `dealType` 추가
+  - `buildTabHref`, `buildTrendHref`, `buildRawHref` 모두 `dealType` 반영
+  - 탭 이동/기간(3m,6m,1y,all)/평형 변경 시 `dealType` 유지
+  - `ComplexDealTypePanel` 내부 `useState` 제거, URL(querystring) 기반으로 상태 제어
+- 결과
+  - `price/listings/info` 모든 서브페이지에서 동일 동작
+  - 새로고침/공유 링크/브라우저 이동 시 토글 상태 유지
+  - 전세/월세/매매 카드 수치가 기간+평형 필터 조합에 맞게 표시됨
+
 ## 참고
 - 오늘 표준 노트 파일명 형식 유지: `YYYY-MM-DD-conversation.md`

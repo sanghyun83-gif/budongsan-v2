@@ -5,17 +5,19 @@ import ComplexListingsTab from "@/components/ComplexListingsTab";
 import DetailActionBar from "@/components/DetailActionBar";
 import FinanceEstimateCard from "@/components/FinanceEstimateCard";
 import LivabilitySummaryCard from "@/components/LivabilitySummaryCard";
-import SandboxTradeChartMock from "@/components/SandboxTradeChartMock";
-import { getComplexDealsById, getComplexSummaryById, getComplexTrendDealsById } from "@/lib/complexes";
+import TradeChartPanel from "@/components/TradeChartPanel";
+import ComplexDealTypePanel from "@/components/ComplexDealTypePanel";
+import { getComplexDealsById, getComplexRentDealsById, getComplexSummaryById, getComplexTrendDealsById } from "@/lib/complexes";
 import type { TrendDealItem } from "@/lib/complexes";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; trend?: string; area?: string }>;
+  searchParams: Promise<{ tab?: string; trend?: string; area?: string; dealType?: string }>;
 }
 
 type DetailTab = "price" | "listings" | "info";
 type TrendWindow = "3m" | "6m" | "1y" | "all";
+type DealTypeParam = "sale" | "jeonse" | "wolse";
 const KST_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   year: "numeric",
@@ -168,26 +170,34 @@ function computeSaleTrend(deals: TrendDealItem[], days: number | null) {
   return { recentCount: recent.length, recentAvg, countDiff, countDiffPct, avgDiff, avgDiffPct };
 }
 
-function buildTrendHref(complexId: number, trend: TrendWindow, area: string): string {
+function normalizeDealType(raw?: string): DealTypeParam {
+  if (raw === "jeonse" || raw === "wolse") return raw;
+  return "sale";
+}
+
+function buildTrendHref(complexId: number, trend: TrendWindow, area: string, dealType: DealTypeParam): string {
   const sp = new URLSearchParams();
   if (trend !== "1y") sp.set("trend", trend);
   if (area !== "all") sp.set("area", area);
+  if (dealType !== "sale") sp.set("dealType", dealType);
   return `/complexes/${complexId}${sp.toString() ? `?${sp.toString()}` : ""}`;
 }
 
-function buildTabHref(complexId: number, tab: DetailTab, trend: TrendWindow, area: string) {
+function buildTabHref(complexId: number, tab: DetailTab, trend: TrendWindow, area: string, dealType: DealTypeParam) {
   const sp = new URLSearchParams();
   if (tab !== "price") sp.set("tab", tab);
   if (trend !== "1y") sp.set("trend", trend);
   if (area !== "all") sp.set("area", area);
+  if (dealType !== "sale") sp.set("dealType", dealType);
   return `/complexes/${complexId}${sp.toString() ? `?${sp.toString()}` : ""}`;
 }
 
-function buildRawHref(complexId: number, tab?: string, trend?: string, area?: string) {
+function buildRawHref(complexId: number, tab?: string, trend?: string, area?: string, dealType?: string) {
   const sp = new URLSearchParams();
   if (tab) sp.set("tab", tab);
   if (trend) sp.set("trend", trend);
   if (area) sp.set("area", area);
+  if (dealType) sp.set("dealType", dealType);
   return `/complexes/${complexId}${sp.toString() ? `?${sp.toString()}` : ""}`;
 }
 
@@ -278,8 +288,9 @@ function buildPriceChartStructuredData(input: {
 
 export default async function ComplexDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { tab, trend, area } = await searchParams;
+  const { tab, trend, area, dealType: rawDealType } = await searchParams;
   const activeTab = normalizeDetailTab(tab);
+  const dealType = normalizeDealType(rawDealType);
 
   const complexId = Number(id);
   if (!Number.isInteger(complexId) || complexId <= 0) notFound();
@@ -296,12 +307,11 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
   );
 
   const trendWindow = normalizeTrendWindow(trend);
-  const [recentDeals, trendDeals] = activeTab === "price"
-    ? await Promise.all([
-        getComplexDealsById(complexId, 1, 20),
-        getComplexTrendDealsById(complexId, 300)
-      ])
-    : [[], []];
+  const [recentDeals, trendDeals, recentRentDeals] = await Promise.all([
+    getComplexDealsById(complexId, 1, 20),
+    getComplexTrendDealsById(complexId, 300),
+    getComplexRentDealsById(complexId, 200)
+  ]);
 
   const sortedAreaOptions = Array.from(
     new Set(trendDeals.map((d) => Number(d.areaM2.toFixed(2))))
@@ -315,8 +325,8 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
     ? (areaOptions.includes(requestedArea) ? requestedArea : "all")
     : (requestedArea === "all" ? "all" : requestedArea);
 
-  const normalizedHref = buildTabHref(complexId, activeTab, trendWindow, selectedArea);
-  const rawHref = buildRawHref(complexId, tab, trend, area);
+  const normalizedHref = buildTabHref(complexId, activeTab, trendWindow, selectedArea, dealType);
+  const rawHref = buildRawHref(complexId, tab, trend, area, rawDealType);
   if (rawHref !== normalizedHref) {
     redirect(normalizedHref);
   }
@@ -325,8 +335,6 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
     ? trendDeals
     : trendDeals.filter((d) => d.areaM2.toFixed(2) === selectedArea);
   const saleTrend = computeSaleTrend(filteredTrendDeals, getTrendDays(trendWindow));
-  const saleHigh = filteredTrendDeals.length > 0 ? Math.max(...filteredTrendDeals.map((d) => d.dealAmountManwon)) : null;
-  const saleLow = filteredTrendDeals.length > 0 ? Math.min(...filteredTrendDeals.map((d) => d.dealAmountManwon)) : null;
   const trendComparisonText = trendWindow === "all"
     ? "전체 기간은 누적 지표만 제공합니다."
     : saleTrend.recentCount === 0
@@ -391,7 +399,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         aria-label="단지 상세 탭"
       >
         {tabItems.map((item) => {
-          const href = buildTabHref(complexId, item.key, trendWindow, selectedArea);
+          const href = buildTabHref(complexId, item.key, trendWindow, selectedArea, dealType);
           const active = item.key === activeTab;
           return (
             <Link
@@ -428,7 +436,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
             </div>
           </section>
 
-          <SandboxTradeChartMock deals={trendDeals} initialArea={selectedArea} complexName={complex.aptName} />
+          <TradeChartPanel deals={trendDeals} initialArea={selectedArea} complexName={complex.aptName} />
 
           {saleTrend && (
             <section style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 12, padding: 16, display: "grid", gap: 12 }}>
@@ -443,7 +451,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
                   {(["3m", "6m", "1y", "all"] as TrendWindow[]).map((w) => (
                     <Link
                       key={w}
-                      href={buildTrendHref(complexId, w, selectedArea)}
+                      href={buildTrendHref(complexId, w, selectedArea, dealType)}
                       className="ui-button"
                       style={{
                         borderRadius: 999,
@@ -464,7 +472,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
                 {areaOptions.map((a) => (
                   <Link
                     key={a}
-                    href={buildTrendHref(complexId, trendWindow, a)}
+                    href={buildTrendHref(complexId, trendWindow, a, dealType)}
                     className="ui-button"
                     style={{
                       borderRadius: 999,
@@ -480,71 +488,18 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
                 ))}
               </div>
 
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: 12 }}>
-                  <p style={{ fontWeight: 700, color: "#0f766e", marginBottom: 4 }}>매매 시세 동향</p>
-                  <p style={{ color: "#0f172a" }}>
-                    {trendWindow === "all" ? "전체 기간" : trendWindow === "1y" ? "최근 1년" : trendWindow === "6m" ? "최근 6개월" : "최근 3개월"} 기준 거래량은 <b>{saleTrend.recentCount}건</b>,
-                    평균 거래가는 <b>{formatManwon(saleTrend.recentAvg)}</b>입니다.
-                  </p>
-                  <p style={{ color: "#475569", marginTop: 4 }}>{trendComparisonText}</p>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                  <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: 12 }}>
-                    <p style={{ fontWeight: 700, color: "#0f766e", marginBottom: 4 }}>전세 시세 동향</p>
-                    <p style={{ color: "#475569", fontSize: 13 }}>준비 중</p>
-                  </div>
-                  <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: 12 }}>
-                    <p style={{ fontWeight: 700, color: "#0f766e", marginBottom: 4 }}>월세 시세 동향</p>
-                    <p style={{ color: "#475569", fontSize: 13 }}>준비 중</p>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-                <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, padding: 12 }}>
-                  <p style={{ color: "#64748b" }}>역대 최고 매매</p>
-                  <p style={{ fontSize: 22, fontWeight: 900, color: "#0f172a" }}>{formatManwon(saleHigh)}</p>
-                </div>
-                <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, padding: 12 }}>
-                  <p style={{ color: "#64748b" }}>역대 최저 매매</p>
-                  <p style={{ fontSize: 22, fontWeight: 900, color: "#0f172a" }}>{formatManwon(saleLow)}</p>
-                </div>
-              </div>
-
+              <ComplexDealTypePanel
+                dealType={dealType}
+                trendWindow={trendWindow}
+                selectedArea={selectedArea}
+                saleTrend={saleTrend}
+                trendComparisonText={trendComparisonText}
+                recentDeals={recentDeals}
+                recentRentDeals={recentRentDeals}
+              />
 
             </section>
           )}
-
-          <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>최근 거래 내역</h2>
-            {recentDeals.length === 0 ? (
-              <p style={{ color: "#64748b" }}>거래 내역이 없습니다.</p>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {recentDeals.map((d) => (
-                  <div
-                    key={d.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      borderBottom: "1px solid #f1f5f9",
-                      paddingBottom: 8
-                    }}
-                  >
-                    <div>
-                      <p style={{ fontWeight: 600 }}>{new Date(d.dealDate).toLocaleDateString("ko-KR")}</p>
-                      <p style={{ color: "#64748b" }}>
-                        {d.areaM2}m² · {d.floor ?? "-"}층
-                      </p>
-                    </div>
-                    <p style={{ fontWeight: 700 }}>{formatManwon(d.dealAmountManwon)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
 
           <FinanceEstimateCard
             complexId={complexId}
@@ -555,10 +510,37 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         </>
       )}
 
-      {activeTab === "listings" && <ComplexListingsTab complexId={complexId} />}
+      {activeTab === "listings" && (
+        <>
+          <section style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 12, padding: 16, display: "grid", gap: 12 }}>
+            <ComplexDealTypePanel
+              dealType={dealType}
+              trendWindow={trendWindow}
+              selectedArea={selectedArea}
+              saleTrend={saleTrend}
+              trendComparisonText={trendComparisonText}
+              recentDeals={recentDeals}
+              recentRentDeals={recentRentDeals}
+            />
+          </section>
+          <ComplexListingsTab complexId={complexId} />
+        </>
+      )}
 
       {activeTab === "info" && (
         <>
+          <section style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 12, padding: 16, display: "grid", gap: 12 }}>
+            <ComplexDealTypePanel
+              dealType={dealType}
+              trendWindow={trendWindow}
+              selectedArea={selectedArea}
+              saleTrend={saleTrend}
+              trendComparisonText={trendComparisonText}
+              recentDeals={recentDeals}
+              recentRentDeals={recentRentDeals}
+            />
+          </section>
+
           <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>단지정보</h2>
             <p style={{ color: "#0f172a" }}>출처: 국토교통부 실거래가 공개데이터</p>

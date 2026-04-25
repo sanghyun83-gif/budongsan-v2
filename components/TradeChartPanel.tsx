@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TrendDealItem } from "@/lib/complexes";
 
-interface SandboxTradeChartMockProps {
+interface TradeChartPanelProps {
   deals: TrendDealItem[];
   initialArea?: string;
   complexName?: string;
@@ -157,7 +157,7 @@ function computeLabelBox(centerX: number, preferredY: number, text: string, inne
   return { x, y, width, height: 16, textX: x + width / 2, textY: y + 11 };
 }
 
-export default function SandboxTradeChartMock({ deals, initialArea = "all", complexName = "해당 단지" }: SandboxTradeChartMockProps) {
+export default function TradeChartPanel({ deals, initialArea = "all", complexName = "해당 단지" }: TradeChartPanelProps) {
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
   const [wrapWidth, setWrapWidth] = useState(570);
   const [useAreaAdjustedAvg, setUseAreaAdjustedAvg] = useState(false);

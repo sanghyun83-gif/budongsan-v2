@@ -24,6 +24,8 @@
         "qa:lighthouse:mobile": "lighthouse http://localhost:3000 --output html --output-path ./docs/lighthouse-mobile.html --chrome-flags=\"--headless\"", 
         "ingest:molit": "node scripts/ingest-molit.mjs",
         "ingest:molit:max": "node scripts/ingest-molit.mjs --regionConcurrency=6 --monthConcurrency=4 --fetchConcurrency=6 --dbBatchSize=1500 --maxPerRegion=0 --normalizeInline=false", 
+        "ingest:molit:rent": "node scripts/ingest-molit-rent.mjs", 
+        "ingest:molit:rent:dry": "node scripts/ingest-molit-rent.mjs --dryRun=true", 
         "ingest:molit:seoul3m": "node scripts/ingest-molit.mjs --months=3",
         "ingest:molit:dry": "node scripts/ingest-molit.mjs --months=3 --dryRun=true",
         "db:indexes:mvp3": "node scripts/run-sql.mjs sql/004_mvp3_indexes.sql",
