@@ -362,7 +362,10 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
     : null;
 
   return (
-    <main style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 16 }}>
+    <main
+      className="complex-detail-page"
+      style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px", display: "grid", gap: 16 }}
+    >
       {priceChartJsonLd && (
         <script
           type="application/ld+json"
@@ -370,11 +373,11 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
         />
       )}
 
-      <Link href="/" style={{ color: "#0f766e", textDecoration: "underline", width: "fit-content" }}>
+      <Link href="/" className="complex-detail-back-link" style={{ color: "#0f766e", textDecoration: "underline", width: "fit-content" }}>
         뒤로
       </Link>
 
-      <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+      <section className="complex-detail-hero" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>{complex.aptName}</h1>
         <p style={{ color: "#475569", marginTop: 4 }}>{formatRegionText(complex.regionName, complex.legalDong)}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
@@ -387,6 +390,7 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
       <DetailActionBar complexId={complexId} />
 
       <section
+        className="complex-detail-tabs"
         style={{
           background: "#fff",
           border: "1px solid #e2e8f0",
@@ -419,18 +423,18 @@ export default async function ComplexDetailPage({ params, searchParams }: PagePr
 
       {activeTab === "price" && (
         <>
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
+          <section className="complex-detail-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div className="complex-detail-kpi-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
               <p style={{ color: "#64748b" }}>최근 거래가</p>
               <p style={{ fontSize: 24, fontWeight: 800 }}>{formatManwon(complex.latestDealAmount)}</p>
             </div>
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
+            <div className="complex-detail-kpi-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
               <p style={{ color: "#64748b" }}>최근 거래일</p>
               <p style={{ fontSize: 24, fontWeight: 800 }}>
                 {complex.latestDealDate ? new Date(complex.latestDealDate).toLocaleDateString("ko-KR") : "-"}
               </p>
             </div>
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
+            <div className="complex-detail-kpi-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
               <p style={{ color: "#64748b" }}>최근 3개월 거래</p>
               <p style={{ fontSize: 24, fontWeight: 800 }}>{complex.dealCount3m}건</p>
             </div>
