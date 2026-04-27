@@ -444,8 +444,9 @@ body {
     font-size: 13px;
   }
 
-  .header-search-input {
-    font-size: 14px;
+  .header-search-input,
+  .search-main-input {
+    font-size: 16px;
   }
 }
 
@@ -925,8 +926,8 @@ body {
 
 @media (max-width: 430px) {
   .complex-detail-page {
-    padding: 16px 12px !important;
-    gap: 12px !important;
+    padding: 14px 10px !important;
+    gap: 10px !important;
   }
 
   .complex-detail-page .complex-detail-back-link {
@@ -937,17 +938,22 @@ body {
   .complex-detail-page .complex-detail-hero {
     border-color: #d6e2ee !important;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-    padding: 14px !important;
+    padding: 12px !important;
   }
 
   .complex-detail-page .complex-detail-hero h1 {
-    font-size: 22px !important;
+    font-size: 20px !important;
     line-height: 1.3;
   }
 
   .complex-detail-page .complex-detail-hero p {
-    font-size: 14px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .complex-detail-page .ui-trust-chip {
+    font-size: 11px;
+    padding: 3px 8px;
   }
 
   .complex-detail-page .complex-detail-tabs {
@@ -956,9 +962,10 @@ body {
     background: #f8fafc !important;
   }
 
-  .complex-detail-page .complex-detail-tabs .ui-button {
-    min-height: 40px;
-    font-size: 13px;
+  .complex-detail-page .complex-detail-tabs .ui-button,
+  .complex-detail-page .ui-button {
+    min-height: 38px;
+    font-size: 12px;
     padding: 8px 10px;
   }
 
@@ -977,11 +984,11 @@ body {
   }
 
   .complex-detail-page .complex-detail-kpi-card p:first-child {
-    font-size: 13px;
+    font-size: 12px;
     color: #475569 !important;
   }
 
   .complex-detail-page .complex-detail-kpi-card p:nth-child(2) {
-    font-size: 22px !important;
+    font-size: 20px !important;
   }
 }
