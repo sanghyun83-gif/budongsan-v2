@@ -47,6 +47,22 @@ If missing/invalid, response is:
 - `GET /v1/officetel/rent/search`
 - `GET /v1/officetel/trade/search`
 
+### Combined complex search
+- `GET /v1/search`
+  - Finds matching complex names across all 4 datasets.
+  - Returns grouped rows with: `property_type`, `complex_name`, `rent_count`, `trade_count`, `total_count`, `sggcd_list`, `umdnm_list`, `jibun_list`.
+  - Note: `page_size` max is `1000` on this endpoint.
+
+### Combined records (rent + trade in one call)
+- `GET /v1/complex/records`
+  - Returns both `rent` and `trade` blocks for one complex.
+  - Required params: `property_type` (`dasaedae` or `officetel`), `complex_name`.
+
+### Combined records (rent + trade in one call)
+- `GET /v1/complex/records`
+  - Returns both `rent` and `trade` blocks for one complex.
+  - Required params: `property_type` (`dasaedae` or `officetel`), `complex_name`.
+
 ## Main query parameters
 
 ### Shared filters
@@ -58,7 +74,7 @@ If missing/invalid, response is:
 ### Name filters
 - Dasaedae: `mhouseNm`
 - Officetel: `offiNm`
-- Search endpoints: `q` (contains search)
+- Search endpoints: `q` (contains search), optional `dong` (jibun/dong narrowing)
 
 ### Numeric range filters
 - Rent: `min_deposit`, `max_deposit`, `min_monthlyRent`, `max_monthlyRent`
@@ -71,19 +87,34 @@ If missing/invalid, response is:
 curl "https://sootja.kr/api/v1/health?api_key=YOUR_API_KEY"
 ```
 
-### Search by complex name (Korean)
+### Search by complex name (Korean, combined)
 ```bash
-curl "https://sootja.kr/api/v1/dasaedae/rent/search?api_key=YOUR_API_KEY&q=%EB%8D%94%EA%B0%80%EC%98%A8&page=1&page_size=20"
+curl "https://sootja.kr/api/v1/search?api_key=YOUR_API_KEY&q=%EB%8D%94%EA%B0%80%EC%98%A8&page=1&page_size=20"
 ```
 
-### Single complex all rent rows
+### Combined search across dasaedae + officetel
 ```bash
-curl "https://sootja.kr/api/v1/dasaedae/rent?api_key=YOUR_API_KEY&mhouseNm=%ED%98%84%EB%8C%80%EB%B9%8C%EB%9D%BC&page=1&page_size=9999"
+curl "https://sootja.kr/api/v1/search?api_key=YOUR_API_KEY&q=%EB%8D%94%EA%B0%80%EC%98%A8&page=1&page_size=20"
 ```
 
-### Single complex all trade rows
+### Combined records for one complex (rent + trade)
 ```bash
-curl "https://sootja.kr/api/v1/dasaedae/trade?api_key=YOUR_API_KEY&mhouseNm=%ED%98%84%EB%8C%80%EB%B9%8C%EB%9D%BC&page=1&page_size=9999"
+curl "https://sootja.kr/api/v1/complex/records?api_key=YOUR_API_KEY&property_type=dasaedae&complex_name=%EB%8D%94%EA%B0%80%EC%98%A8102%EB%8F%99&page=1&page_size=9999"
+```
+
+### Search with optional dong narrowing
+```bash
+curl "https://sootja.kr/api/v1/dasaedae/rent/search?api_key=YOUR_API_KEY&q=%EB%8D%94%EA%B0%80%EC%98%A8&dong=126-28&page=1&page_size=20"
+```
+
+### Single complex combined records (rent + trade)
+```bash
+curl "https://sootja.kr/api/v1/complex/records?api_key=YOUR_API_KEY&property_type=dasaedae&complex_name=%ED%98%84%EB%8C%80%EB%B9%8C%EB%9D%BC"
+```
+
+### Windows (cmd) speed check example
+```bat
+curl -sS -o NUL -w "total_s=%{time_total}\n" "https://sootja.kr/api/v1/search?api_key=YOUR_API_KEY&q=%EB%8D%94%EA%B0%80%EC%98%A8&page=1&page_size=20"
 ```
 
 ## Node.js example

@@ -80,42 +80,53 @@ function normKey(name: string, dong: string): string {
   return `${norm(name)}|${norm(dong)}`;
 }
 
-function parseManwon(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  const n = Number(String(value).replaceAll(",", "").trim());
-  return Number.isFinite(n) ? n : null;
-}
-
-function toIsoDate(year?: string, month?: string, day?: string): string | null {
-  if (!year || !month || !day) return null;
-  const d = new Date(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00+09:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
-
 const SOOTJA_CACHE_TTL_MS = 8_000;
 const SOOTJA_CACHE = new Map<string, { expiresAt: number; payload: { items: unknown[]; total: number } }>();
 
-function makeExternalHref(kind: "villa" | "officetel", row: Record<string, string>): string {
-  const sp = new URLSearchParams();
-  sp.set("kind", kind);
-  sp.set("sggCd", row.sggcd ?? "");
-  sp.set("umdNm", row.umdnm ?? "");
-  if (kind === "villa") sp.set("name", row.mhousenm ?? "");
-  else sp.set("name", row.offinm ?? "");
+type CombinedSearchRow = {
+  property_type?: string;
+  complex_name?: string;
+  sggcd_list?: unknown;
+  umdnm_list?: unknown;
+};
+
+function toStringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v ?? "").trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(",").map((v) => v.trim()).filter(Boolean);
+  return [];
+}
+
+function rowKind(propertyType: string | undefined): "villa" | "officetel" {
+  return (propertyType ?? "").toLowerCase().includes("officetel") ? "officetel" : "villa";
+}
+
+function makeExternalHrefFromCombined(row: CombinedSearchRow): string {
+  const kind = rowKind(row.property_type);
+  const sggCd = toStringList(row.sggcd_list)[0] ?? "";
+  const umdNm = toStringList(row.umdnm_list)[0] ?? "";
+  const name = String(row.complex_name ?? "");
+  const sp = new URLSearchParams({ kind, sggCd, umdNm, name });
   return `/rowhouses/external?${sp.toString()}`;
 }
 
-async function fetchSootjaSearch(path: string, q: string, pageSize: number) {
-  const apiKey = process.env.SOOTJA_API_KEY ?? process.env.API_KEY;
+function resolveSootjaApiKey(): string {
+  const raw = (process.env.SOOTJA_API_KEY ?? process.env.API_KEY ?? "").trim();
+  if (!raw) return "";
+  const fromEq = raw.includes("=") ? raw.slice(raw.lastIndexOf("=") + 1).trim() : raw;
+  return fromEq.replace(/^['\"]|['\"]$/g, "").trim();
+}
+
+async function fetchSootjaCombinedSearch(q: string, pageSize: number) {
+  const apiKey = resolveSootjaApiKey();
   const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
   if (!apiKey || q.trim().length < 2) return { items: [], total: 0 };
 
-  const key = `${path}|${q}|${pageSize}`;
+  const key = `/v1/search|${q}|${pageSize}`;
   const cached = SOOTJA_CACHE.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.payload;
 
-  const sp = new URLSearchParams({ api_key: apiKey, q, page: "1", page_size: String(Math.min(pageSize, 12)) });
-  const res = await fetch(`${base}${path}?${sp.toString()}`, { cache: "no-store" });
+  const sp = new URLSearchParams({ api_key: apiKey, q, page: "1", page_size: String(Math.min(pageSize, 1000)) });
+  const res = await fetch(`${base}/v1/search?${sp.toString()}`, { cache: "no-store" });
   if (!res.ok) return { items: [], total: 0 };
   const json = await res.json();
   const payload = { items: Array.isArray(json?.items) ? json.items : [], total: Number(json?.total ?? 0) };
@@ -190,11 +201,8 @@ export async function GET(req: NextRequest) {
           AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
       ) stats ON true`;
 
-    const rowhousePromise = lite
-      ? fetchSootjaSearch("/v1/dasaedae/trade/search", input.q, input.size)
-      : Promise.resolve({ items: [], total: 0 });
-    const officetelPromise = lite
-      ? fetchSootjaSearch("/v1/officetel/trade/search", input.q, input.size)
+    const combinedPromise = lite
+      ? fetchSootjaCombinedSearch(input.q, input.size)
       : Promise.resolve({ items: [], total: 0 });
 
     let result;
@@ -531,50 +539,39 @@ export async function GET(req: NextRequest) {
 
     let mergedItems = mappedItems;
     if (lite) {
-      const [rowhouseSettled, officetelSettled] = await Promise.allSettled([rowhousePromise, officetelPromise]);
-      const rowhouse = rowhouseSettled.status === "fulfilled" ? rowhouseSettled.value : { items: [], total: 0 };
-      const officetel = officetelSettled.status === "fulfilled" ? officetelSettled.value : { items: [], total: 0 };
+      let combined: { items: unknown[]; total: number } = { items: [], total: 0 };
+      try {
+        combined = await combinedPromise;
+      } catch {
+        combined = { items: [], total: 0 };
+      }
 
-      const extraItems = [
-        ...rowhouse.items.map((r: Record<string, string>) => ({
-          id: `rowhouse:${r.sggcd ?? ""}:${r.mhousenm ?? ""}:${r.umdnm ?? ""}`,
-          apt_name: r.mhousenm ?? "",
-          legal_dong: r.umdnm ?? "",
-          region_code: r.sggcd ?? "",
-          region_name: r.sggcd ?? "",
+      const extraItems: Array<(typeof mappedItems)[number]> = combined.items.map((raw: unknown) => {
+        const r = raw as CombinedSearchRow;
+        const kind = rowKind(r.property_type);
+        const sggCd = toStringList(r.sggcd_list)[0] ?? "";
+        const umdNm = toStringList(r.umdnm_list)[0] ?? "";
+        const complexName = String(r.complex_name ?? "");
+        return {
+          id: `${kind}:${sggCd}:${complexName}:${umdNm}`,
+          apt_name: complexName,
+          legal_dong: umdNm,
+          region_code: sggCd,
+          region_name: sggCd,
           lat: null,
           lng: null,
-          deal_amount_manwon: parseManwon(r.dealamount),
-          deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
-          build_year: parseManwon(r.buildyear),
+          deal_amount_manwon: null,
+          deal_date: null,
+          build_year: null,
           total_units: null,
           deal_count_3m: 0,
-          property_type: "villa",
-          detail_href: makeExternalHref("villa", r),
+          property_type: kind,
+          detail_href: makeExternalHrefFromCombined(r),
           locationQuality: "approx",
           location_source: "approx",
           locationSource: "approx"
-        })),
-        ...officetel.items.map((r: Record<string, string>) => ({
-          id: `officetel:${r.sggcd ?? ""}:${r.offinm ?? ""}:${r.umdnm ?? ""}`,
-          apt_name: r.offinm ?? "",
-          legal_dong: r.umdnm ?? "",
-          region_code: r.sggcd ?? "",
-          region_name: r.sggcd ?? "",
-          lat: null,
-          lng: null,
-          deal_amount_manwon: parseManwon(r.dealamount),
-          deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
-          build_year: parseManwon(r.buildyear),
-          total_units: null,
-          deal_count_3m: 0,
-          property_type: "officetel",
-          detail_href: makeExternalHref("officetel", r),
-          locationQuality: "approx",
-          location_source: "approx",
-          locationSource: "approx"
-        }))
-      ];
+        };
+      });
 
       const villaItems = extraItems.filter((x) => x.property_type === "villa");
       if (villaItems.length > 0) {
@@ -639,51 +636,34 @@ export async function GET(req: NextRequest) {
       ).slice(0, 3);
 
       for (const q2 of qCandidates) {
-        const [villaRes, offiRes] = await Promise.all([
-          fetchSootjaSearch("/v1/dasaedae/trade/search", q2, input.size),
-          fetchSootjaSearch("/v1/officetel/trade/search", q2, input.size)
-        ]);
+        const combinedRes = await fetchSootjaCombinedSearch(q2, input.size);
 
-        const fallbackItems = [
-          ...villaRes.items.map((r: Record<string, string>) => ({
-            id: `fallback:villa:${r.sggcd ?? ""}:${r.mhousenm ?? ""}:${r.umdnm ?? ""}`,
-            apt_name: r.mhousenm ?? "",
-            legal_dong: r.umdnm ?? "",
-            region_code: r.sggcd ?? "",
-            region_name: r.sggcd ?? "",
+        const fallbackItems: Array<(typeof mappedItems)[number]> = combinedRes.items.map((raw: unknown) => {
+          const r = raw as CombinedSearchRow;
+          const kind = rowKind(r.property_type);
+          const sggCd = toStringList(r.sggcd_list)[0] ?? "";
+          const umdNm = toStringList(r.umdnm_list)[0] ?? "";
+          const complexName = String(r.complex_name ?? "");
+          return {
+            id: `fallback:${kind}:${sggCd}:${complexName}:${umdNm}`,
+            apt_name: complexName,
+            legal_dong: umdNm,
+            region_code: sggCd,
+            region_name: sggCd,
             lat: null,
             lng: null,
-            deal_amount_manwon: parseManwon(r.dealamount),
-            deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
-            build_year: parseManwon(r.buildyear),
+            deal_amount_manwon: null,
+            deal_date: null,
+            build_year: null,
             total_units: null,
             deal_count_3m: 0,
-            property_type: "villa",
-            detail_href: makeExternalHref("villa", r),
+            property_type: kind,
+            detail_href: makeExternalHrefFromCombined(r),
             locationQuality: "approx",
             location_source: "approx",
             locationSource: "approx"
-          })),
-          ...offiRes.items.map((r: Record<string, string>) => ({
-            id: `fallback:officetel:${r.sggcd ?? ""}:${r.offinm ?? ""}:${r.umdnm ?? ""}`,
-            apt_name: r.offinm ?? "",
-            legal_dong: r.umdnm ?? "",
-            region_code: r.sggcd ?? "",
-            region_name: r.sggcd ?? "",
-            lat: null,
-            lng: null,
-            deal_amount_manwon: parseManwon(r.dealamount),
-            deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
-            build_year: parseManwon(r.buildyear),
-            total_units: null,
-            deal_count_3m: 0,
-            property_type: "officetel",
-            detail_href: makeExternalHref("officetel", r),
-            locationQuality: "approx",
-            location_source: "approx",
-            locationSource: "approx"
-          }))
-        ];
+          };
+        });
 
         if (fallbackItems.length > 0) {
           const byKey = new Map<string, (typeof fallbackItems)[number]>();

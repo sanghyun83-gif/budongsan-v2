@@ -19,15 +19,21 @@ export default async function ExternalRowhousePage({ searchParams }: { searchPar
     return <main style={{ maxWidth: 920, margin: "0 auto", padding: 16 }}>SOOTJA API 키가 필요합니다.</main>;
   }
 
-  const path = kind === "villa" ? "/v1/dasaedae/trade" : "/v1/officetel/trade";
-  const keyName = kind === "villa" ? "mhouseNm" : "offiNm";
-  const sp = new URLSearchParams({ api_key: apiKey, sggCd, page: "1", page_size: "50", sort: "deal_ymd:desc" });
-  sp.set(keyName, name);
+  const propertyType = kind === "villa" ? "dasaedae" : "officetel";
+  const sp = new URLSearchParams({
+    api_key: apiKey,
+    property_type: propertyType,
+    complex_name: name,
+    page: "1",
+    page_size: "50"
+  });
+  if (sggCd) sp.set("sggCd", sggCd);
   if (umdNm) sp.set("umdNm", umdNm);
 
-  const res = await fetch(`${base}${path}?${sp.toString()}`, { cache: "no-store" });
-  const json = res.ok ? await res.json() : { items: [] };
-  const items = Array.isArray(json?.items) ? json.items : [];
+  const res = await fetch(`${base}/v1/complex/records?${sp.toString()}`, { cache: "no-store" });
+  const json = res.ok ? await res.json() : {};
+  const tradeBlock = json?.trade;
+  const items = Array.isArray(tradeBlock?.items) ? tradeBlock.items : [];
 
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: 16, display: "grid", gap: 12 }}>
