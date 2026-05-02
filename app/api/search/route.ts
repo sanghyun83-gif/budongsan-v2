@@ -629,6 +629,83 @@ export async function GET(req: NextRequest) {
         .slice(0, input.size);
     }
 
+    if (lite && mergedItems.length === 0) {
+      const qCandidates = Array.from(
+        new Set([
+          input.q.trim(),
+          input.q.replace(/\s+/g, ""),
+          input.q.split(/\s+/).filter(Boolean)[0] ?? ""
+        ].filter((v) => v.length >= 2))
+      ).slice(0, 3);
+
+      for (const q2 of qCandidates) {
+        const [villaRes, offiRes] = await Promise.all([
+          fetchSootjaSearch("/v1/dasaedae/trade/search", q2, input.size),
+          fetchSootjaSearch("/v1/officetel/trade/search", q2, input.size)
+        ]);
+
+        const fallbackItems = [
+          ...villaRes.items.map((r: Record<string, string>) => ({
+            id: `fallback:villa:${r.sggcd ?? ""}:${r.mhousenm ?? ""}:${r.umdnm ?? ""}`,
+            apt_name: r.mhousenm ?? "",
+            legal_dong: r.umdnm ?? "",
+            region_code: r.sggcd ?? "",
+            region_name: r.sggcd ?? "",
+            lat: null,
+            lng: null,
+            deal_amount_manwon: parseManwon(r.dealamount),
+            deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
+            build_year: parseManwon(r.buildyear),
+            total_units: null,
+            deal_count_3m: 0,
+            property_type: "villa",
+            detail_href: makeExternalHref("villa", r),
+            locationQuality: "approx",
+            location_source: "approx",
+            locationSource: "approx"
+          })),
+          ...offiRes.items.map((r: Record<string, string>) => ({
+            id: `fallback:officetel:${r.sggcd ?? ""}:${r.offinm ?? ""}:${r.umdnm ?? ""}`,
+            apt_name: r.offinm ?? "",
+            legal_dong: r.umdnm ?? "",
+            region_code: r.sggcd ?? "",
+            region_name: r.sggcd ?? "",
+            lat: null,
+            lng: null,
+            deal_amount_manwon: parseManwon(r.dealamount),
+            deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
+            build_year: parseManwon(r.buildyear),
+            total_units: null,
+            deal_count_3m: 0,
+            property_type: "officetel",
+            detail_href: makeExternalHref("officetel", r),
+            locationQuality: "approx",
+            location_source: "approx",
+            locationSource: "approx"
+          }))
+        ];
+
+        if (fallbackItems.length > 0) {
+          const byKey = new Map<string, (typeof fallbackItems)[number]>();
+          for (const item of fallbackItems) {
+            const key = normKey(item.apt_name ?? "", item.legal_dong ?? "");
+            const prev = byKey.get(key);
+            if (!prev) {
+              byKey.set(key, item);
+              continue;
+            }
+            const prevTs = prev.deal_date ? new Date(prev.deal_date).getTime() : 0;
+            const nextTs = item.deal_date ? new Date(item.deal_date).getTime() : 0;
+            if (nextTs > prevTs) byKey.set(key, item);
+          }
+          mergedItems = Array.from(byKey.values())
+            .sort((a, b) => new Date(b.deal_date ?? 0).getTime() - new Date(a.deal_date ?? 0).getTime())
+            .slice(0, input.size);
+          break;
+        }
+      }
+    }
+
     const totalCount = lite
       ? mergedItems.length
       : result.rows.length > 0
