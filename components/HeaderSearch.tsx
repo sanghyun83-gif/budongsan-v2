@@ -24,6 +24,9 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
       if (currentPath === "/search" && currentSearch) {
         router.replace("/search");
       }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("saljip:search-q", { detail: "" }));
+      }
       return;
     }
 
@@ -31,6 +34,9 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
     const currentUrl = `${currentPath}${currentSearch}`;
     if (currentUrl !== targetUrl) {
       router.replace(targetUrl);
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("saljip:search-q", { detail: keyword }));
     }
   }, [q, router]);
 

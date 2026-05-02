@@ -24,9 +24,40 @@ export interface RowhouseSummary {
   updatedAt: string;
 }
 
-export async function getRowhouseSummaryById(id: number): Promise<RowhouseSummary | null> {
-  if (!hasDatabaseUrl()) throw new Error("DATABASE_URL is not configured");
+type BaseProfile = Omit<RowhouseSummary, "latestDealAmount" | "latestDealDate" | "dealCount3m">;
 
+function parseNum(input: unknown): number | null {
+  if (input === null || input === undefined) return null;
+  const n = Number(String(input).replaceAll(",", "").trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function toIsoDate(year?: string, month?: string, day?: string): string | null {
+  if (!year || !month || !day) return null;
+  const mm = month.padStart(2, "0");
+  const dd = day.padStart(2, "0");
+  const d = new Date(`${year}-${mm}-${dd}T00:00:00+09:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+async function fetchJson(path: string, params: Record<string, string | number | undefined>) {
+  const apiKey = process.env.SOOTJA_API_KEY ?? process.env.API_KEY;
+  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
+  if (!apiKey) throw new Error("SOOTJA_API_KEY is not configured");
+
+  const sp = new URLSearchParams();
+  sp.set("api_key", apiKey);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && String(v).length > 0) sp.set(k, String(v));
+  }
+
+  const res = await fetch(`${base}${path}?${sp.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`SOOTJA_API_ERROR ${res.status}`);
+  return res.json();
+}
+
+async function getBaseProfileById(id: number): Promise<BaseProfile | null> {
+  if (!hasDatabaseUrl()) throw new Error("DATABASE_URL is not configured");
   const pool = getDbPool();
   const result = await pool.query(
     `
@@ -43,33 +74,15 @@ export async function getRowhouseSummaryById(id: number): Promise<RowhouseSummar
       c.location_source,
       c.build_year,
       c.total_units,
-      latest.deal_amount_manwon AS latest_deal_amount,
-      latest.deal_date AS latest_deal_date,
-      COALESCE(stats.deal_count_3m, 0) AS deal_count_3m,
       c.updated_at
     FROM complex c
     JOIN region r ON r.id = c.region_id
-    LEFT JOIN LATERAL (
-      SELECT d.deal_amount_manwon, d.deal_date
-      FROM deal_rowhouse_trade_normalized d
-      WHERE d.complex_id = c.id
-      ORDER BY d.deal_date DESC
-      LIMIT 1
-    ) latest ON true
-    LEFT JOIN LATERAL (
-      SELECT COUNT(*)::INT AS deal_count_3m
-      FROM deal_rowhouse_trade_normalized d
-      WHERE d.complex_id = c.id
-        AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
-    ) stats ON true
     WHERE c.id = $1
     LIMIT 1
     `,
     [id]
   );
-
   if (result.rowCount === 0) return null;
-
   const row = result.rows[0];
   return {
     id: Number(row.id),
@@ -85,29 +98,21 @@ export async function getRowhouseSummaryById(id: number): Promise<RowhouseSummar
     locationSource: row.location_source === "exact" ? "exact" : "approx",
     buildYear: row.build_year === null ? null : Number(row.build_year),
     totalUnits: row.total_units === null ? null : Number(row.total_units),
-    latestDealAmount: row.latest_deal_amount === null ? null : Number(row.latest_deal_amount),
-    latestDealDate: row.latest_deal_date ? new Date(row.latest_deal_date).toISOString() : null,
-    dealCount3m: Number(row.deal_count_3m ?? 0),
     updatedAt: new Date(row.updated_at).toISOString()
   };
 }
 
-export async function getRowhouseDealsById(id: number, page = 1, size = 20): Promise<DealHistoryItem[]> {
-  if (!hasDatabaseUrl()) throw new Error("DATABASE_URL is not configured");
-
+async function getDbDealsById(id: number, page = 1, size = 20): Promise<DealHistoryItem[]> {
   const offset = (page - 1) * size;
   const pool = getDbPool();
   const result = await pool.query(
-    `
-    SELECT id, deal_date, deal_amount_manwon, area_m2, floor, build_year
-    FROM deal_rowhouse_trade_normalized
-    WHERE complex_id = $1
-    ORDER BY deal_date DESC, id DESC
-    LIMIT $2 OFFSET $3
-    `,
+    `SELECT id, deal_date, deal_amount_manwon, area_m2, floor, build_year
+     FROM deal_rowhouse_trade_normalized
+     WHERE complex_id = $1
+     ORDER BY deal_date DESC, id DESC
+     LIMIT $2 OFFSET $3`,
     [id, size, offset]
   );
-
   return result.rows.map((row) => ({
     id: Number(row.id),
     dealDate: new Date(row.deal_date).toISOString(),
@@ -118,26 +123,76 @@ export async function getRowhouseDealsById(id: number, page = 1, size = 20): Pro
   }));
 }
 
+export async function getRowhouseSummaryById(id: number): Promise<RowhouseSummary | null> {
+  const base = await getBaseProfileById(id);
+  if (!base) return null;
+
+  try {
+    const latest = await fetchJson("/v1/dasaedae/trade", {
+      sggCd: base.regionCode,
+      mhouseNm: base.aptName,
+      umdNm: base.legalDong,
+      sort: "deal_ymd:desc",
+      page: 1,
+      page_size: 1
+    });
+
+    const now = new Date();
+    const to = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const fromDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const from = `${fromDate.getFullYear()}${String(fromDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const count3m = await fetchJson("/v1/dasaedae/trade", {
+      sggCd: base.regionCode,
+      mhouseNm: base.aptName,
+      umdNm: base.legalDong,
+      deal_ymd_from: from,
+      deal_ymd_to: to,
+      page: 1,
+      page_size: 1
+    });
+
+    const item = latest?.items?.[0];
+    return {
+      ...base,
+      latestDealAmount: parseNum(item?.dealamount),
+      latestDealDate: toIsoDate(item?.dealyear, item?.dealmonth, item?.dealday),
+      dealCount3m: Number(count3m?.total ?? 0)
+    };
+  } catch {
+    return { ...base, latestDealAmount: null, latestDealDate: null, dealCount3m: 0 };
+  }
+}
+
+export async function getRowhouseDealsById(id: number, page = 1, size = 20): Promise<DealHistoryItem[]> {
+  const base = await getBaseProfileById(id);
+  if (!base) return [];
+
+  try {
+    const json = await fetchJson("/v1/dasaedae/trade", {
+      sggCd: base.regionCode,
+      mhouseNm: base.aptName,
+      umdNm: base.legalDong,
+      sort: "deal_ymd:desc",
+      page,
+      page_size: size
+    });
+    return (json?.items ?? []).map((row: Record<string, string>) => ({
+      id: Number(`${row.dealyear ?? ""}${row.dealmonth ?? ""}${row.dealday ?? ""}${row.jibun ?? "0"}`.replace(/\D/g, "").slice(0, 15) || Date.now()),
+      dealDate: toIsoDate(row.dealyear, row.dealmonth, row.dealday) ?? new Date().toISOString(),
+      dealAmountManwon: parseNum(row.dealamount) ?? 0,
+      areaM2: parseNum(row.excluusear) ?? 0,
+      floor: parseNum(row.floor),
+      buildYear: parseNum(row.buildyear)
+    }));
+  } catch {
+    return getDbDealsById(id, page, size);
+  }
+}
+
 export async function getRowhouseTrendDealsById(id: number, size = 300): Promise<TrendDealItem[]> {
-  if (!hasDatabaseUrl()) throw new Error("DATABASE_URL is not configured");
-
-  const pool = getDbPool();
-  const result = await pool.query(
-    `
-    SELECT deal_date, deal_amount_manwon, area_m2
-    FROM deal_rowhouse_trade_normalized
-    WHERE complex_id = $1
-    ORDER BY deal_date DESC, id DESC
-    LIMIT $2
-    `,
-    [id, size]
-  );
-
-  return result.rows.map((row) => ({
-    dealDate: new Date(row.deal_date).toISOString(),
-    dealAmountManwon: Number(row.deal_amount_manwon),
-    areaM2: Number(row.area_m2)
-  }));
+  const deals = await getRowhouseDealsById(id, 1, Math.min(size, 300));
+  return deals.map((d) => ({ dealDate: d.dealDate, dealAmountManwon: d.dealAmountManwon, areaM2: d.areaM2 }));
 }
 
 export async function getRowhouseRentDealsById(id: number, size = 200): Promise<RentHistoryItem[]> {

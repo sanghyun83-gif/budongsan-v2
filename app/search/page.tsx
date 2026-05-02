@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SearchResultsPage from "@/components/SearchResultsPage";
 
 export const metadata: Metadata = {
-  title: "아파트 검색"
+  title: "부동산 검색"
 };
 
 export default async function SearchPage({

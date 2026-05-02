@@ -48,6 +48,81 @@ const ORDER_BY: Record<z.infer<typeof sortSchema>, string> = {
 const SEARCH_CACHE_TTL_MS = 5_000;
 const SEARCH_CACHE = new Map<string, { expiresAt: number; payload: unknown }>();
 
+const AUTO_PREWARM_KEYWORDS = ["더가온", "금강프라임빌", "래미안", "자이"];
+let autoPrewarmStarted = false;
+
+function getBaseUrl() {
+  const raw = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL || "http://localhost:3000";
+  return raw.replace(/\/$/, "");
+}
+
+function triggerAutoPrewarm() {
+  if (autoPrewarmStarted) return;
+  autoPrewarmStarted = true;
+
+  const baseUrl = getBaseUrl();
+  const keywords = (process.env.PREWARM_KEYWORDS ?? AUTO_PREWARM_KEYWORDS.join(","))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+
+  void Promise.allSettled(
+    keywords.map(async (q) => {
+      const sp = new URLSearchParams({ q, page: "1", size: "24", sort: "latest", lite: "true", _warm: "1" });
+      await fetch(`${baseUrl}/api/search?${sp.toString()}`, { cache: "no-store" });
+    })
+  );
+}
+
+function normKey(name: string, dong: string): string {
+  const norm = (v: string) => v.toLowerCase().replace(/[^0-9a-z가-힣]/gi, "");
+  return `${norm(name)}|${norm(dong)}`;
+}
+
+function parseManwon(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(String(value).replaceAll(",", "").trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function toIsoDate(year?: string, month?: string, day?: string): string | null {
+  if (!year || !month || !day) return null;
+  const d = new Date(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00+09:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+const SOOTJA_CACHE_TTL_MS = 8_000;
+const SOOTJA_CACHE = new Map<string, { expiresAt: number; payload: { items: unknown[]; total: number } }>();
+
+function makeExternalHref(kind: "villa" | "officetel", row: Record<string, string>): string {
+  const sp = new URLSearchParams();
+  sp.set("kind", kind);
+  sp.set("sggCd", row.sggcd ?? "");
+  sp.set("umdNm", row.umdnm ?? "");
+  if (kind === "villa") sp.set("name", row.mhousenm ?? "");
+  else sp.set("name", row.offinm ?? "");
+  return `/rowhouses/external?${sp.toString()}`;
+}
+
+async function fetchSootjaSearch(path: string, q: string, pageSize: number) {
+  const apiKey = process.env.SOOTJA_API_KEY ?? process.env.API_KEY;
+  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
+  if (!apiKey || q.trim().length < 2) return { items: [], total: 0 };
+
+  const key = `${path}|${q}|${pageSize}`;
+  const cached = SOOTJA_CACHE.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.payload;
+
+  const sp = new URLSearchParams({ api_key: apiKey, q, page: "1", page_size: String(Math.min(pageSize, 12)) });
+  const res = await fetch(`${base}${path}?${sp.toString()}`, { cache: "no-store" });
+  if (!res.ok) return { items: [], total: 0 };
+  const json = await res.json();
+  const payload = { items: Array.isArray(json?.items) ? json.items : [], total: Number(json?.total ?? 0) };
+  SOOTJA_CACHE.set(key, { expiresAt: Date.now() + SOOTJA_CACHE_TTL_MS, payload });
+  return payload;
+}
+
 function parseExactOnly(params: URLSearchParams): boolean {
   const raw = params.get("exact_only");
   return raw === "true" || raw === "1";
@@ -63,6 +138,10 @@ export async function GET(req: NextRequest) {
   let status = 200;
 
   try {
+    if (!req.nextUrl.searchParams.has("_warm")) {
+      triggerAutoPrewarm();
+    }
+
     if (!hasDatabaseUrl()) {
       status = 503;
       return NextResponse.json({ ok: false, code: "DB_NOT_CONFIGURED", error: "DATABASE_URL is not configured" }, { status });
@@ -110,6 +189,13 @@ export async function GET(req: NextRequest) {
         WHERE d.complex_id = c.id
           AND d.deal_date >= (CURRENT_DATE - INTERVAL '3 months')
       ) stats ON true`;
+
+    const rowhousePromise = lite
+      ? fetchSootjaSearch("/v1/dasaedae/trade/search", input.q, input.size)
+      : Promise.resolve({ items: [], total: 0 });
+    const officetelPromise = lite
+      ? fetchSootjaSearch("/v1/officetel/trade/search", input.q, input.size)
+      : Promise.resolve({ items: [], total: 0 });
 
     let result;
 
@@ -435,20 +521,121 @@ export async function GET(req: NextRequest) {
         build_year: row.build_year === null ? null : Number(row.build_year),
         total_units: row.total_units === null ? null : Number(row.total_units),
         deal_count_3m: Number(row.deal_count_3m ?? 0),
+        property_type: "apartment",
+        detail_href: `/complexes/${row.id}`,
         locationQuality,
-        // Legacy fields for backward compatibility.
         location_source: locationQuality,
         locationSource: locationQuality
       };
     });
 
+    let mergedItems = mappedItems;
+    if (lite) {
+      const [rowhouseSettled, officetelSettled] = await Promise.allSettled([rowhousePromise, officetelPromise]);
+      const rowhouse = rowhouseSettled.status === "fulfilled" ? rowhouseSettled.value : { items: [], total: 0 };
+      const officetel = officetelSettled.status === "fulfilled" ? officetelSettled.value : { items: [], total: 0 };
+
+      const extraItems = [
+        ...rowhouse.items.map((r: Record<string, string>) => ({
+          id: `rowhouse:${r.sggcd ?? ""}:${r.mhousenm ?? ""}:${r.umdnm ?? ""}`,
+          apt_name: r.mhousenm ?? "",
+          legal_dong: r.umdnm ?? "",
+          region_code: r.sggcd ?? "",
+          region_name: r.sggcd ?? "",
+          lat: null,
+          lng: null,
+          deal_amount_manwon: parseManwon(r.dealamount),
+          deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
+          build_year: parseManwon(r.buildyear),
+          total_units: null,
+          deal_count_3m: 0,
+          property_type: "villa",
+          detail_href: makeExternalHref("villa", r),
+          locationQuality: "approx",
+          location_source: "approx",
+          locationSource: "approx"
+        })),
+        ...officetel.items.map((r: Record<string, string>) => ({
+          id: `officetel:${r.sggcd ?? ""}:${r.offinm ?? ""}:${r.umdnm ?? ""}`,
+          apt_name: r.offinm ?? "",
+          legal_dong: r.umdnm ?? "",
+          region_code: r.sggcd ?? "",
+          region_name: r.sggcd ?? "",
+          lat: null,
+          lng: null,
+          deal_amount_manwon: parseManwon(r.dealamount),
+          deal_date: toIsoDate(r.dealyear, r.dealmonth, r.dealday),
+          build_year: parseManwon(r.buildyear),
+          total_units: null,
+          deal_count_3m: 0,
+          property_type: "officetel",
+          detail_href: makeExternalHref("officetel", r),
+          locationQuality: "approx",
+          location_source: "approx",
+          locationSource: "approx"
+        }))
+      ];
+
+      const villaItems = extraItems.filter((x) => x.property_type === "villa");
+      if (villaItems.length > 0) {
+        const dongs = Array.from(new Set(villaItems.map((x) => x.legal_dong).filter(Boolean)));
+        const codes = Array.from(new Set(villaItems.map((x) => x.region_code).filter(Boolean)));
+        if (dongs.length > 0 && codes.length > 0) {
+          const db = await pool.query(
+            `
+            SELECT c.id, c.apt_name, c.legal_dong, r.code AS region_code
+            FROM complex c
+            JOIN region r ON r.id = c.region_id
+            WHERE c.legal_dong = ANY($1::text[])
+              AND r.code = ANY($2::text[])
+            `,
+            [dongs, codes]
+          );
+          const byDongCode = new Map<string, Array<{ id: number; apt_name: string }>>();
+          for (const row of db.rows) {
+            const key = `${row.legal_dong}|${row.region_code}`;
+            const arr = byDongCode.get(key) ?? [];
+            arr.push({ id: Number(row.id), apt_name: String(row.apt_name ?? "") });
+            byDongCode.set(key, arr);
+          }
+          const n = (v: string) => v.toLowerCase().replace(/[^0-9a-z가-힣]/gi, "");
+          for (const item of villaItems) {
+            const key = `${item.legal_dong}|${item.region_code}`;
+            const candidates = byDongCode.get(key) ?? [];
+            const target = n(item.apt_name ?? "");
+            const found = candidates.find((c) => {
+              const cName = n(c.apt_name);
+              return cName === target || cName.includes(target) || target.includes(cName);
+            });
+            if (found) item.detail_href = `/rowhouses/${found.id}`;
+          }
+        }
+      }
+
+      const byKey = new Map<string, (typeof mappedItems)[number]>();
+      for (const item of [...mappedItems, ...extraItems]) {
+        const key = normKey(item.apt_name ?? "", item.legal_dong ?? "");
+        const prev = byKey.get(key);
+        if (!prev) {
+          byKey.set(key, item as (typeof mappedItems)[number]);
+          continue;
+        }
+        const prevTs = prev.deal_date ? new Date(prev.deal_date).getTime() : 0;
+        const nextTs = item.deal_date ? new Date(item.deal_date).getTime() : 0;
+        if (nextTs > prevTs) byKey.set(key, item as (typeof mappedItems)[number]);
+      }
+      mergedItems = Array.from(byKey.values())
+        .sort((a, b) => new Date(b.deal_date ?? 0).getTime() - new Date(a.deal_date ?? 0).getTime())
+        .slice(0, input.size);
+    }
+
     const totalCount = lite
-      ? mappedItems.length
+      ? mergedItems.length
       : result.rows.length > 0
         ? Number(result.rows[0].total_count ?? 0)
         : 0;
-    const latestTimestamp = result.rows.reduce((maxTs: number, row) => {
-      for (const candidate of [row.deal_date, row.complex_updated_at]) {
+    const latestTimestamp = mergedItems.reduce((maxTs: number, row) => {
+      for (const candidate of [row.deal_date]) {
         if (!candidate) continue;
         const parsedTs = new Date(candidate).getTime();
         if (Number.isFinite(parsedTs) && parsedTs > maxTs) {
@@ -463,11 +650,11 @@ export async function GET(req: NextRequest) {
       ok: true,
       query: { ...input, exact_only: exactOnly, lite },
       appliedSort: effectiveSort,
-      count: mappedItems.length,
+      count: mergedItems.length,
       totalCount,
       sourceLabel: "국토교통부 실거래가 공개데이터",
       updatedAt,
-      items: mappedItems
+      items: mergedItems
     };
 
     SEARCH_CACHE.set(cacheKey, {

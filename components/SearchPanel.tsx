@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-type MarketTabKey = "apt_sale";
+type MarketTabKey = "apt_sale" | "villa_sale";
 
-type SearchItem = {
+type AptSearchItem = {
   id: string;
   apt_name: string;
   legal_dong: string;
@@ -15,13 +15,22 @@ type SearchItem = {
   deal_date: string | null;
 };
 
+type VillaSearchItem = {
+  rowhouseId: number | null;
+  aptName: string;
+  legalDong: string;
+  sggCd: string;
+  dealAmountManwon: number | null;
+  dealDate: string | null;
+};
+
 const MARKET_TABS: Array<{ key: MarketTabKey; label: string }> = [
-  { key: "apt_sale", label: "아파트 매매" }
+  { key: "apt_sale", label: "아파트 매매" },
+  { key: "villa_sale", label: "빌라 매매" }
 ];
 
 function parseMarketTab(value: string | null): MarketTabKey {
-  void value;
-  return "apt_sale";
+  return value === "villa_sale" ? "villa_sale" : "apt_sale";
 }
 
 function formatManwon(value: number | null): string {
@@ -46,12 +55,12 @@ export default function SearchPanel() {
 
   const [marketTab, setMarketTab] = useState<MarketTabKey>("apt_sale");
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<SearchItem[]>([]);
+  const [items, setItems] = useState<Array<AptSearchItem | VillaSearchItem>>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef<Map<string, { items: SearchItem[]; totalCount: number }>>(new Map());
+  const cacheRef = useRef<Map<string, { items: Array<AptSearchItem | VillaSearchItem>; totalCount: number }>>(new Map());
 
   const trimmedQ = q.trim();
   const hasItems = useMemo(() => items.length > 0, [items]);
@@ -69,7 +78,8 @@ export default function SearchPanel() {
   function handleMarketTabChange(nextTab: MarketTabKey) {
     setMarketTab(nextTab);
     const next = new URLSearchParams(window.location.search);
-    next.delete("market");
+    if (nextTab === "villa_sale") next.set("market", "villa_sale");
+    else next.delete("market");
     const nextQuery = next.toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
   }
@@ -82,7 +92,8 @@ export default function SearchPanel() {
       return;
     }
 
-    const cached = cacheRef.current.get(trimmedQ);
+    const cacheKey = `${marketTab}:${trimmedQ}`;
+    const cached = cacheRef.current.get(cacheKey);
     if (cached) {
       setItems(cached.items);
       setTotalCount(cached.totalCount);
@@ -102,10 +113,14 @@ export default function SearchPanel() {
         sp.set("q", trimmedQ);
         sp.set("page", "1");
         sp.set("size", "20");
-        sp.set("sort", "latest");
-        sp.set("lite", "true");
 
-        const res = await fetch(`/api/search?${sp.toString()}`, {
+        const endpoint = marketTab === "villa_sale" ? "/api/rowhouses/search" : "/api/search";
+        if (marketTab === "apt_sale") {
+          sp.set("sort", "latest");
+          sp.set("lite", "true");
+        }
+
+        const res = await fetch(`${endpoint}?${sp.toString()}`, {
           cache: "no-store",
           signal: controller.signal
         });
@@ -115,9 +130,9 @@ export default function SearchPanel() {
           throw new Error(json.error ?? "검색 요청 실패");
         }
 
-        const nextItems = (json.items ?? []) as SearchItem[];
-        const nextTotalCount = Number(json.totalCount ?? json.count ?? 0);
-        cacheRef.current.set(trimmedQ, { items: nextItems, totalCount: nextTotalCount });
+        const nextItems = (json.items ?? []) as Array<AptSearchItem | VillaSearchItem>;
+        const nextTotalCount = Number(json.totalCount ?? json.total ?? json.count ?? 0);
+        cacheRef.current.set(cacheKey, { items: nextItems, totalCount: nextTotalCount });
         setItems(nextItems);
         setTotalCount(nextTotalCount);
       } catch (e) {
@@ -131,7 +146,7 @@ export default function SearchPanel() {
     }, 80);
 
     return () => clearTimeout(timer);
-  }, [trimmedQ]);
+  }, [trimmedQ, marketTab]);
 
   return (
     <main className="search-home-wrap">
@@ -158,7 +173,7 @@ export default function SearchPanel() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="아파트명, 지역명 검색"
+              placeholder={marketTab === "villa_sale" ? "빌라명, 지역명 검색" : "아파트명, 지역명 검색"}
               className="search-main-input"
             />
             <p className="search-meta-text">
@@ -175,18 +190,38 @@ export default function SearchPanel() {
 
           {hasItems && (
             <div className="search-result-list">
-              {items.map((item) => (
-                <Link key={item.id} href={`/complexes/${item.id}`} className="search-result-item">
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
-                    <p style={{ color: "#64748b", fontSize: 13 }}>{item.region_name} {item.legal_dong}</p>
-                  </div>
-                  <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
-                    <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>
-                    <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(item.deal_date)}</p>
-                  </div>
-                </Link>
-              ))}
+              {items.map((item, idx) => {
+                if (marketTab === "villa_sale") {
+                  const v = item as VillaSearchItem;
+                  const href = v.rowhouseId ? `/rowhouses/${v.rowhouseId}` : "#";
+                  return (
+                    <Link key={`${v.sggCd}-${v.aptName}-${v.legalDong}-${idx}`} href={href} className="search-result-item">
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <p style={{ fontWeight: 800, color: "#0f172a" }}>{v.aptName}</p>
+                        <p style={{ color: "#64748b", fontSize: 13 }}>{v.sggCd} {v.legalDong}</p>
+                      </div>
+                      <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
+                        <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(v.dealAmountManwon)}</p>
+                        <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(v.dealDate)}</p>
+                      </div>
+                    </Link>
+                  );
+                }
+
+                const a = item as AptSearchItem;
+                return (
+                  <Link key={a.id} href={`/complexes/${a.id}`} className="search-result-item">
+                    <div style={{ display: "grid", gap: 4 }}>
+                      <p style={{ fontWeight: 800, color: "#0f172a" }}>{a.apt_name}</p>
+                      <p style={{ color: "#64748b", fontSize: 13 }}>{a.region_name} {a.legal_dong}</p>
+                    </div>
+                    <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
+                      <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(a.deal_amount_manwon)}</p>
+                      <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(a.deal_date)}</p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>

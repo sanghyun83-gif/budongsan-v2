@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
 import HeaderSearch from "@/components/HeaderSearch";
 
 export default function RouteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideChrome = pathname.startsWith("/mock/commission");
+
+  useEffect(() => {
+    if (hideChrome) return;
+    if (typeof window === "undefined") return;
+    const key = "saljip-prewarm-v1";
+    if (window.sessionStorage.getItem(key) === "1") return;
+    window.sessionStorage.setItem(key, "1");
+    void fetch("/api/ops/prewarm", { cache: "no-store" }).catch(() => undefined);
+  }, [hideChrome]);
 
   if (hideChrome) {
     return <>{children}</>;

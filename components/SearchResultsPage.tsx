@@ -10,6 +10,8 @@ type SearchItem = {
   region_name: string;
   deal_amount_manwon: number | null;
   deal_date: string | null;
+  property_type?: "apartment" | "villa" | "officetel";
+  detail_href?: string | null;
 };
 
 function formatManwon(value: number | null): string {
@@ -43,6 +45,15 @@ export default function SearchResultsPage({ initialQuery }: { initialQuery: stri
   useEffect(() => {
     setQ(initialQuery);
   }, [initialQuery]);
+
+  useEffect(() => {
+    const onQ = (event: Event) => {
+      const next = (event as CustomEvent<string>).detail ?? "";
+      setQ(String(next).trim());
+    };
+    window.addEventListener("saljip:search-q", onQ as EventListener);
+    return () => window.removeEventListener("saljip:search-q", onQ as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!trimmedQ) {
@@ -121,32 +132,53 @@ export default function SearchResultsPage({ initialQuery }: { initialQuery: stri
 
       {hasItems && (
         <section style={{ display: "grid", gap: 8 }}>
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={`/complexes/${item.id}`}
-              style={{
-                border: "1px solid #e2e8f0",
-                borderRadius: 10,
-                background: "#fff",
-                padding: 12,
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: 10,
-                textDecoration: "none",
-                color: "inherit"
-              }}
-            >
-              <div style={{ display: "grid", gap: 4 }}>
-                <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
-                <p style={{ color: "#64748b", fontSize: 13 }}>{item.region_name} {item.legal_dong}</p>
-              </div>
-              <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
-                <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>
-                <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(item.deal_date)}</p>
-              </div>
-            </Link>
-          ))}
+          {items.map((item) => {
+            const typeLabel = item.property_type === "villa" ? "빌라" : item.property_type === "officetel" ? "오피스텔" : "아파트";
+            const href = item.detail_href ?? (item.property_type === "apartment" ? `/complexes/${item.id}` : null);
+            const body = (
+              <>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
+                  <p style={{ color: "#64748b", fontSize: 13 }}>{typeLabel} · {item.region_name} {item.legal_dong}</p>
+                </div>
+                <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
+                  <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>
+                  <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(item.deal_date)}</p>
+                </div>
+              </>
+            );
+
+            if (!href) {
+              return (
+                <div
+                  key={item.id}
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 10, background: "#fff", padding: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}
+                >
+                  {body}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.id}
+                href={href}
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  background: "#fff",
+                  padding: 12,
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  gap: 10,
+                  textDecoration: "none",
+                  color: "inherit"
+                }}
+              >
+                {body}
+              </Link>
+            );
+          })}
         </section>
       )}
     </main>
