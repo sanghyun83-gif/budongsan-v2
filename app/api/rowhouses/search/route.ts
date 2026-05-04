@@ -13,10 +13,17 @@ function toIsoDate(year?: string, month?: string, day?: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function resolveSootjaApiKey(): string {
+  const raw = (process.env.SOOTJA_API_KEY ?? process.env.API_KEY ?? "").trim();
+  if (!raw) return "";
+  const fromEq = raw.includes("=") ? raw.slice(raw.lastIndexOf("=") + 1).trim() : raw;
+  return fromEq.replace(/^['\"]|['\"]$/g, "").trim();
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const apiKey = process.env.SOOTJA_API_KEY ?? process.env.API_KEY;
-    const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
+    const apiKey = resolveSootjaApiKey();
+    const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/realestate";
     if (!apiKey) {
       return NextResponse.json({ ok: false, code: "SOOTJA_KEY_MISSING", error: "SOOTJA_API_KEY is not configured" }, { status: 503 });
     }

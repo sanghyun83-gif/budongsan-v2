@@ -6,22 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 
 type MarketTabKey = "apt_sale" | "villa_sale";
 
-type AptSearchItem = {
+type SearchItem = {
   id: string;
   apt_name: string;
   legal_dong: string;
   region_name: string;
   deal_amount_manwon: number | null;
   deal_date: string | null;
-};
-
-type VillaSearchItem = {
-  rowhouseId: number | null;
-  aptName: string;
-  legalDong: string;
-  sggCd: string;
-  dealAmountManwon: number | null;
-  dealDate: string | null;
+  property_type?: string;
+  detail_href?: string;
 };
 
 const MARKET_TABS: Array<{ key: MarketTabKey; label: string }> = [
@@ -49,18 +42,26 @@ function formatDate(value: string | null): string {
   return d.toLocaleDateString("ko-KR");
 }
 
+function formatRegionLabel(regionName: string, legalDong: string): string {
+  const region = (regionName ?? "").trim();
+  const dong = (legalDong ?? "").trim();
+  const isCodeLike = /^\d{5}$/.test(region);
+  if (!region || isCodeLike) return dong || "-";
+  return [region, dong].filter(Boolean).join(" ");
+}
+
 export default function SearchPanel() {
   const router = useRouter();
   const pathname = usePathname();
 
   const [marketTab, setMarketTab] = useState<MarketTabKey>("apt_sale");
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<Array<AptSearchItem | VillaSearchItem>>([]);
+  const [items, setItems] = useState<SearchItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef<Map<string, { items: Array<AptSearchItem | VillaSearchItem>; totalCount: number }>>(new Map());
+  const cacheRef = useRef<Map<string, { items: SearchItem[]; totalCount: number }>>(new Map());
 
   const trimmedQ = q.trim();
   const hasItems = useMemo(() => items.length > 0, [items]);
@@ -114,13 +115,10 @@ export default function SearchPanel() {
         sp.set("page", "1");
         sp.set("size", "20");
 
-        const endpoint = marketTab === "villa_sale" ? "/api/rowhouses/search" : "/api/search";
-        if (marketTab === "apt_sale") {
-          sp.set("sort", "latest");
-          sp.set("lite", "true");
-        }
+        sp.set("sort", "latest");
+        sp.set("lite", "true");
 
-        const res = await fetch(`${endpoint}?${sp.toString()}`, {
+        const res = await fetch(`/api/search?${sp.toString()}`, {
           cache: "no-store",
           signal: controller.signal
         });
@@ -130,10 +128,15 @@ export default function SearchPanel() {
           throw new Error(json.error ?? "검색 요청 실패");
         }
 
-        const nextItems = (json.items ?? []) as Array<AptSearchItem | VillaSearchItem>;
-        const nextTotalCount = Number(json.totalCount ?? json.total ?? json.count ?? 0);
-        cacheRef.current.set(cacheKey, { items: nextItems, totalCount: nextTotalCount });
-        setItems(nextItems);
+        const rawItems = (json.items ?? []) as SearchItem[];
+        const filteredItems = rawItems.filter((item) => {
+          const pt = (item.property_type ?? "").toLowerCase();
+          if (marketTab === "apt_sale") return pt === "apartment";
+          return pt === "villa";
+        });
+        const nextTotalCount = filteredItems.length;
+        cacheRef.current.set(cacheKey, { items: filteredItems, totalCount: nextTotalCount });
+        setItems(filteredItems);
         setTotalCount(nextTotalCount);
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
@@ -191,33 +194,16 @@ export default function SearchPanel() {
           {hasItems && (
             <div className="search-result-list">
               {items.map((item, idx) => {
-                if (marketTab === "villa_sale") {
-                  const v = item as VillaSearchItem;
-                  const href = v.rowhouseId ? `/rowhouses/${v.rowhouseId}` : "#";
-                  return (
-                    <Link key={`${v.sggCd}-${v.aptName}-${v.legalDong}-${idx}`} href={href} className="search-result-item">
-                      <div style={{ display: "grid", gap: 4 }}>
-                        <p style={{ fontWeight: 800, color: "#0f172a" }}>{v.aptName}</p>
-                        <p style={{ color: "#64748b", fontSize: 13 }}>{v.sggCd} {v.legalDong}</p>
-                      </div>
-                      <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
-                        <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(v.dealAmountManwon)}</p>
-                        <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(v.dealDate)}</p>
-                      </div>
-                    </Link>
-                  );
-                }
-
-                const a = item as AptSearchItem;
+                const href = item.detail_href ?? "#";
                 return (
-                  <Link key={a.id} href={`/complexes/${a.id}`} className="search-result-item">
+                  <Link key={`${item.id}-${idx}`} href={href} className="search-result-item">
                     <div style={{ display: "grid", gap: 4 }}>
-                      <p style={{ fontWeight: 800, color: "#0f172a" }}>{a.apt_name}</p>
-                      <p style={{ color: "#64748b", fontSize: 13 }}>{a.region_name} {a.legal_dong}</p>
+                      <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
+                      <p style={{ color: "#64748b", fontSize: 13 }}>{formatRegionLabel(item.region_name, item.legal_dong)}</p>
                     </div>
                     <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
-                      <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(a.deal_amount_manwon)}</p>
-                      <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(a.deal_date)}</p>
+                      <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>
+                      <p style={{ color: "#94a3b8", fontSize: 12 }}>{formatDate(item.deal_date)}</p>
                     </div>
                   </Link>
                 );

@@ -30,6 +30,14 @@ function formatDate(value: string | null): string {
   return d.toLocaleDateString("ko-KR");
 }
 
+function formatRegionLabel(regionName: string, legalDong: string): string {
+  const region = (regionName ?? "").trim();
+  const dong = (legalDong ?? "").trim();
+  const isCodeLike = /^\d{5}$/.test(region);
+  if (!region || isCodeLike) return dong || "-";
+  return [region, dong].filter(Boolean).join(" ");
+}
+
 export default function SearchResultsPage({ initialQuery }: { initialQuery: string }) {
   const [q, setQ] = useState(initialQuery);
   const [items, setItems] = useState<SearchItem[]>([]);
@@ -139,7 +147,7 @@ export default function SearchResultsPage({ initialQuery }: { initialQuery: stri
               <>
                 <div style={{ display: "grid", gap: 4 }}>
                   <p style={{ fontWeight: 800, color: "#0f172a" }}>{item.apt_name}</p>
-                  <p style={{ color: "#64748b", fontSize: 13 }}>{typeLabel} · {item.region_name} {item.legal_dong}</p>
+                  <p style={{ color: "#64748b", fontSize: 13 }}>{typeLabel} · {formatRegionLabel(item.region_name, item.legal_dong)}</p>
                 </div>
                 <div style={{ textAlign: "right", display: "grid", alignContent: "center", gap: 2 }}>
                   <p style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{formatManwon(item.deal_amount_manwon)}</p>

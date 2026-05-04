@@ -3,6 +3,12 @@ import { z } from "zod";
 import { getDbPool, hasDatabaseUrl } from "@/lib/db";
 import { logApiError, recordApiMetric } from "@/lib/observability";
 import { buildSearchMatcher } from "@/lib/search/matcher";
+import {
+  encodeRouteParams,
+  makeStableKey,
+  propertyTypeToCode,
+  type PropertyType as StablePropertyType
+} from "@/lib/url-key";
 
 const sortSchema = z.enum(["latest", "price_desc", "price_asc", "deal_count"]);
 const MAX_DB_INT = 2_147_483_647;
@@ -96,17 +102,42 @@ function toStringList(value: unknown): string[] {
   return [];
 }
 
-function rowKind(propertyType: string | undefined): "villa" | "officetel" {
-  return (propertyType ?? "").toLowerCase().includes("officetel") ? "officetel" : "villa";
+function normalizeStablePropertyType(value: string | undefined): StablePropertyType {
+  const normalized = (value ?? "").toLowerCase();
+  if (normalized.includes("officetel")) return "officetel";
+  if (normalized.includes("villa") || normalized.includes("dasaedae")) return "dasaedae";
+  return "apartment";
 }
 
-function makeExternalHrefFromCombined(row: CombinedSearchRow): string {
-  const kind = rowKind(row.property_type);
-  const sggCd = toStringList(row.sggcd_list)[0] ?? "";
-  const umdNm = toStringList(row.umdnm_list)[0] ?? "";
-  const name = String(row.complex_name ?? "");
-  const sp = new URLSearchParams({ kind, sggCd, umdNm, name });
-  return `/rowhouses/external?${sp.toString()}`;
+function makeDeallistHref(params: {
+  propertyType: StablePropertyType;
+  complexName: string;
+  sggCd?: string;
+  umdNm?: string;
+  jibun?: string;
+  regionName?: string;
+}): string {
+  const stableKey = makeStableKey({
+    propertyType: params.propertyType,
+    complexName: params.complexName,
+    sggCd: params.sggCd,
+    umdNm: params.umdNm,
+    jibun: params.jibun
+  });
+  const payloadToken = encodeRouteParams(
+    {
+      propertyType: params.propertyType,
+      complexName: params.complexName,
+      sggCd: params.sggCd,
+      umdNm: params.umdNm,
+      jibun: params.jibun,
+      regionName: params.regionName
+    },
+    process.env.URL_SIGNING_SECRET
+  );
+  const ptypeCode = propertyTypeToCode(params.propertyType);
+  const sggCd = (params.sggCd ?? "00000").trim() || "00000";
+  return `/deallist/${encodeURIComponent(sggCd)}/${ptypeCode}/${stableKey}?t=${encodeURIComponent(payloadToken)}`;
 }
 
 function resolveSootjaApiKey(): string {
@@ -118,7 +149,7 @@ function resolveSootjaApiKey(): string {
 
 async function fetchSootjaCombinedSearch(q: string, pageSize: number) {
   const apiKey = resolveSootjaApiKey();
-  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
+  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/realestate";
   if (!apiKey || q.trim().length < 2) return { items: [], total: 0 };
 
   const key = `/v1/search|${q}|${pageSize}`;
@@ -153,10 +184,7 @@ export async function GET(req: NextRequest) {
       triggerAutoPrewarm();
     }
 
-    if (!hasDatabaseUrl()) {
-      status = 503;
-      return NextResponse.json({ ok: false, code: "DB_NOT_CONFIGURED", error: "DATABASE_URL is not configured" }, { status });
-    }
+    const dbAvailable = hasDatabaseUrl();
 
     const params = req.nextUrl.searchParams;
     const exactOnly = parseExactOnly(params);
@@ -180,7 +208,6 @@ export async function GET(req: NextRequest) {
     });
 
     const offset = (input.page - 1) * input.size;
-    const pool = getDbPool();
     const effectiveSort: z.infer<typeof sortSchema> = lite && input.sort === "deal_count" ? "latest" : input.sort;
     const matcher = buildSearchMatcher(input.q);
     const cacheKey = req.nextUrl.search;
@@ -188,6 +215,52 @@ export async function GET(req: NextRequest) {
     if (cached && cached.expiresAt > Date.now()) {
       return NextResponse.json(cached.payload);
     }
+
+    if (!dbAvailable) {
+      const combined = await fetchSootjaCombinedSearch(input.q, input.size);
+      const apiOnlyItems = combined.items.slice(0, input.size).map((raw: unknown) => {
+        const r = raw as CombinedSearchRow & { jibun_list?: unknown };
+        const propertyType = normalizeStablePropertyType(r.property_type);
+        const sggCd = toStringList(r.sggcd_list)[0] ?? "";
+        const umdNm = toStringList(r.umdnm_list)[0] ?? "";
+        const jibun = toStringList(r.jibun_list)[0] ?? "";
+        const complexName = String(r.complex_name ?? "");
+        return {
+          id: `${propertyType}:${sggCd}:${complexName}:${umdNm}`,
+          apt_name: complexName,
+          legal_dong: umdNm,
+          region_code: sggCd,
+          region_name: sggCd,
+          lat: null,
+          lng: null,
+          deal_amount_manwon: null,
+          deal_date: null,
+          build_year: null,
+          total_units: null,
+          deal_count_3m: 0,
+          property_type: propertyType === "dasaedae" ? "villa" : propertyType,
+          detail_href: makeDeallistHref({ propertyType, complexName, sggCd, umdNm, jibun }),
+          locationQuality: "approx",
+          location_source: "approx",
+          locationSource: "approx"
+        };
+      });
+
+      const payload = {
+        ok: true,
+        query: { ...input, exact_only: exactOnly, lite: true },
+        appliedSort: "latest",
+        count: apiOnlyItems.length,
+        totalCount: Number(combined.total ?? apiOnlyItems.length),
+        sourceLabel: "국토교통부 실거래가 공개데이터",
+        updatedAt: new Date().toISOString(),
+        items: apiOnlyItems
+      };
+      SEARCH_CACHE.set(cacheKey, { expiresAt: Date.now() + SEARCH_CACHE_TTL_MS, payload });
+      return NextResponse.json(payload);
+    }
+
+    const pool = getDbPool();
     const orderBy = ORDER_BY[effectiveSort];
     const dealCountSelect = lite ? "0::INT AS deal_count_3m," : "stats.deal_count_3m,";
     const totalCountSelect = lite ? "0::BIGINT AS total_count" : "COUNT(*) OVER() AS total_count";
@@ -530,7 +603,13 @@ export async function GET(req: NextRequest) {
         total_units: row.total_units === null ? null : Number(row.total_units),
         deal_count_3m: Number(row.deal_count_3m ?? 0),
         property_type: "apartment",
-        detail_href: `/complexes/${row.id}`,
+        detail_href: makeDeallistHref({
+          propertyType: "apartment",
+          complexName: row.apt_name ?? "",
+          sggCd: row.region_code ?? "",
+          umdNm: row.legal_dong ?? "",
+          regionName: row.region_name ?? ""
+        }),
         locationQuality,
         location_source: locationQuality,
         locationSource: locationQuality
@@ -548,12 +627,12 @@ export async function GET(req: NextRequest) {
 
       const extraItems: Array<(typeof mappedItems)[number]> = combined.items.map((raw: unknown) => {
         const r = raw as CombinedSearchRow;
-        const kind = rowKind(r.property_type);
+        const propertyType = normalizeStablePropertyType(r.property_type);
         const sggCd = toStringList(r.sggcd_list)[0] ?? "";
         const umdNm = toStringList(r.umdnm_list)[0] ?? "";
         const complexName = String(r.complex_name ?? "");
         return {
-          id: `${kind}:${sggCd}:${complexName}:${umdNm}`,
+          id: `${propertyType}:${sggCd}:${complexName}:${umdNm}`,
           apt_name: complexName,
           legal_dong: umdNm,
           region_code: sggCd,
@@ -565,13 +644,39 @@ export async function GET(req: NextRequest) {
           build_year: null,
           total_units: null,
           deal_count_3m: 0,
-          property_type: kind,
-          detail_href: makeExternalHrefFromCombined(r),
+          property_type: propertyType === "dasaedae" ? "villa" : propertyType,
+          detail_href: makeDeallistHref({
+            propertyType,
+            complexName,
+            sggCd,
+            umdNm
+          }),
           locationQuality: "approx",
           location_source: "approx",
           locationSource: "approx"
         };
       });
+
+      const regionCodes = Array.from(new Set(extraItems.map((x) => String(x.region_code ?? "").trim()).filter(Boolean)));
+      if (regionCodes.length > 0) {
+        try {
+          const regionRows = await pool.query(
+            `SELECT code, name_ko FROM region WHERE code = ANY($1::text[])`,
+            [regionCodes]
+          );
+          const regionNameByCode = new Map<string, string>();
+          for (const row of regionRows.rows) {
+            regionNameByCode.set(String(row.code), String(row.name_ko ?? ""));
+          }
+          for (const item of extraItems) {
+            const key = String(item.region_code ?? "");
+            const regionName = regionNameByCode.get(key);
+            if (regionName) item.region_name = regionName;
+          }
+        } catch {
+          // ignore region name lookup failures
+        }
+      }
 
       const villaItems = extraItems.filter((x) => x.property_type === "villa");
       if (villaItems.length > 0) {
@@ -604,7 +709,14 @@ export async function GET(req: NextRequest) {
               const cName = n(c.apt_name);
               return cName === target || cName.includes(target) || target.includes(cName);
             });
-            if (found) item.detail_href = `/rowhouses/${found.id}`;
+            if (found) {
+              item.detail_href = makeDeallistHref({
+                propertyType: "dasaedae",
+                complexName: item.apt_name ?? "",
+                sggCd: item.region_code ?? "",
+                umdNm: item.legal_dong ?? ""
+              });
+            }
           }
         }
       }
@@ -640,12 +752,12 @@ export async function GET(req: NextRequest) {
 
         const fallbackItems: Array<(typeof mappedItems)[number]> = combinedRes.items.map((raw: unknown) => {
           const r = raw as CombinedSearchRow;
-          const kind = rowKind(r.property_type);
+          const propertyType = normalizeStablePropertyType(r.property_type);
           const sggCd = toStringList(r.sggcd_list)[0] ?? "";
           const umdNm = toStringList(r.umdnm_list)[0] ?? "";
           const complexName = String(r.complex_name ?? "");
           return {
-            id: `fallback:${kind}:${sggCd}:${complexName}:${umdNm}`,
+            id: `fallback:${propertyType}:${sggCd}:${complexName}:${umdNm}`,
             apt_name: complexName,
             legal_dong: umdNm,
             region_code: sggCd,
@@ -657,13 +769,36 @@ export async function GET(req: NextRequest) {
             build_year: null,
             total_units: null,
             deal_count_3m: 0,
-            property_type: kind,
-            detail_href: makeExternalHrefFromCombined(r),
+            property_type: propertyType === "dasaedae" ? "villa" : propertyType,
+            detail_href: makeDeallistHref({
+              propertyType,
+              complexName,
+              sggCd,
+              umdNm
+            }),
             locationQuality: "approx",
             location_source: "approx",
             locationSource: "approx"
           };
         });
+
+        const fallbackCodes = Array.from(new Set(fallbackItems.map((x) => String(x.region_code ?? "").trim()).filter(Boolean)));
+        if (fallbackCodes.length > 0) {
+          try {
+            const regionRows = await pool.query(`SELECT code, name_ko FROM region WHERE code = ANY($1::text[])`, [fallbackCodes]);
+            const regionNameByCode = new Map<string, string>();
+            for (const row of regionRows.rows) {
+              regionNameByCode.set(String(row.code), String(row.name_ko ?? ""));
+            }
+            for (const item of fallbackItems) {
+              const key = String(item.region_code ?? "");
+              const regionName = regionNameByCode.get(key);
+              if (regionName) item.region_name = regionName;
+            }
+          } catch {
+            // ignore region name lookup failures
+          }
+        }
 
         if (fallbackItems.length > 0) {
           const byKey = new Map<string, (typeof fallbackItems)[number]>();

@@ -8,7 +8,16 @@ export default function GlobalHeader() {
   return (
     <header className="global-header">
       <div className="global-header-inner">
-        <Link href="/" className="global-header-logo" aria-label="살집 홈">
+        <Link
+          href="/"
+          className="global-header-logo"
+          aria-label="살집 홈"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("saljip:search-q", { detail: "" }));
+            }
+          }}
+        >
           <span className="global-header-logo-mark" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4.5 10.2L12 4L19.5 10.2V19.5H4.5V10.2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />

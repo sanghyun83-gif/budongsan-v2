@@ -40,6 +40,23 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
     }
   }, [q, router]);
 
+  useEffect(() => {
+    if (pathname === "/") {
+      setQ("");
+      return;
+    }
+    setQ((searchParams.get("q") ?? "").trim());
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const onSearchQ = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail ?? "";
+      setQ(String(detail).trim());
+    };
+    window.addEventListener("saljip:search-q", onSearchQ as EventListener);
+    return () => window.removeEventListener("saljip:search-q", onSearchQ as EventListener);
+  }, []);
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const keyword = q.trim();
@@ -75,6 +92,16 @@ export default function HeaderSearch({ compact = false }: HeaderSearchProps) {
           placeholder="아파트명, 지역명 검색"
           className="header-search-input"
         />
+        {q.trim() ? (
+          <button
+            type="button"
+            className="header-search-clear"
+            aria-label="검색어 지우기"
+            onClick={() => setQ("")}
+          >
+            ×
+          </button>
+        ) : null}
       </form>
     </div>
   );

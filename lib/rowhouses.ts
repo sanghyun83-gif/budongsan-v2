@@ -40,9 +40,16 @@ function toIsoDate(year?: string, month?: string, day?: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function resolveSootjaApiKey(): string {
+  const raw = (process.env.SOOTJA_API_KEY ?? process.env.API_KEY ?? "").trim();
+  if (!raw) return "";
+  const fromEq = raw.includes("=") ? raw.slice(raw.lastIndexOf("=") + 1).trim() : raw;
+  return fromEq.replace(/^['\"]|['\"]$/g, "").trim();
+}
+
 async function fetchJson(path: string, params: Record<string, string | number | undefined>) {
-  const apiKey = process.env.SOOTJA_API_KEY ?? process.env.API_KEY;
-  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/api";
+  const apiKey = resolveSootjaApiKey();
+  const base = process.env.SOOTJA_API_BASE_URL ?? "https://sootja.kr/realestate";
   if (!apiKey) throw new Error("SOOTJA_API_KEY is not configured");
 
   const sp = new URLSearchParams();
